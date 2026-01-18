@@ -6,9 +6,9 @@ services:
     container_name: openlib-db
     restart: always
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: openlib
+      POSTGRES_DB: ${DB_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
