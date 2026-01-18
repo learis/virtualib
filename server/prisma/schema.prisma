@@ -1,0 +1,151 @@
+// This schema.prisma file will be created in the filesystem
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Library {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  users           User[]
+  books           Book[]
+  categories      Category[]
+  book_loans      BookLoan[]
+  borrow_requests BorrowRequest[]
+  settings        Settings[]
+
+  @@map("libraries")
+}
+
+model Role {
+  id        String @id @default(uuid())
+  role_name String @unique
+  users     User[]
+
+  @@map("user_roles")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  library_id    String
+  library       Library   @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  name          String
+  surname       String
+  email         String    @unique
+  phone         String?
+  role_id       String
+  role          Role      @relation(fields: [role_id], references: [id])
+  password_hash String
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
+
+  book_loans      BookLoan[]
+  borrow_requests BorrowRequest[]
+
+  @@map("users")
+}
+
+model Category {
+  id         String   @id @default(uuid())
+  library_id String
+  library    Library  @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  name       String
+  created_at DateTime @default(now())
+
+  books      BookCategory[]
+
+  @@map("categories")
+}
+
+model Book {
+  id               String   @id @default(uuid())
+  library_id       String
+  library          Library  @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  name             String
+  original_name    String?
+  author           String
+  publish_year     Int
+  isbn             String
+  publisher        String
+  cover_image_path String?
+  summary_tr       String?
+  summary_en       String?
+  deleted_at       DateTime?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  categories      BookCategory[]
+  loans           BookLoan[]
+  borrow_requests BorrowRequest[]
+
+  @@map("books")
+}
+
+model BookCategory {
+  book_id     String
+  book        Book     @relation(fields: [book_id], references: [id], onDelete: Cascade)
+  category_id String
+  category    Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@id([book_id, category_id])
+  @@map("book_categories")
+}
+
+model BookLoan {
+  id                    String    @id @default(uuid())
+  library_id            String
+  library               Library   @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  book_id               String
+  book                  Book      @relation(fields: [book_id], references: [id], onDelete: Cascade)
+  user_id               String
+  user                  User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  borrowed_at           DateTime  @default(now())
+  due_at                DateTime
+  returned_at           DateTime?
+  status                String    @default("active") // active, return_requested, returned
+  reminder_stage        Int       @default(0)
+  last_reminder_sent_at DateTime?
+  created_at            DateTime  @default(now())
+
+  @@map("book_loans")
+}
+
+model BorrowRequest {
+  id           String    @id @default(uuid())
+  library_id   String
+  library      Library   @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  book_id      String
+  book         Book      @relation(fields: [book_id], references: [id], onDelete: Cascade)
+  user_id      String
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  status       String // pending, approved, rejected
+  requested_at DateTime  @default(now())
+  decided_at   DateTime?
+
+  @@map("borrow_requests")
+}
+
+model Settings {
+  id             String   @id @default(uuid())
+  library_id     String
+  library        Library  @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  smtp_host      String?
+  smtp_port      Int?
+  smtp_user      String?
+  smtp_password  String?
+  smtp_from      String?
+  reminder_rules Json?
+  email_templates Json?
+
+  @@map("settings")
+}

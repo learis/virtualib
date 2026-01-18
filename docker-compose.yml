@@ -1,0 +1,42 @@
+
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: openlib-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: openlib
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - openlib-net
+  api:
+    build: ./server
+    container_name: openlib-api
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/openlib
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 3000
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    networks:
+      - openlib-net
+  web:
+    build: ./client
+    container_name: openlib-web
+    restart: always
+    ports:
+      - "8080:80"
+    networks:
+      - openlib-net
+volumes:
+  postgres_data:
+networks:
+  openlib-net:
+    driver: bridge

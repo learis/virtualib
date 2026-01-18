@@ -1,0 +1,403 @@
+import { useState, useEffect, useRef } from 'react';
+import { Save, Mail, Bell } from 'lucide-react';
+import api from '../services/api';
+import { useAuthStore } from '../store/authStore';
+
+interface LibrarySettings {
+    smtp_host: string;
+    smtp_port: number;
+    smtp_user: string;
+    smtp_pass: string;
+    smtp_from: string;
+    overdue_days: number;
+    email_templates?: {
+        overdue?: {
+            subject: string;
+            body: string;
+        };
+    };
+}
+
+export const Settings = () => {
+    const [settings, setSettings] = useState<LibrarySettings>({
+        smtp_host: '',
+        smtp_port: 587,
+        smtp_user: '',
+        smtp_pass: '',
+        smtp_from: '',
+        overdue_days: 14
+    });
+    const [isLoading, setIsLoading] = useState(false);
+    const [activeField, setActiveField] = useState<'subject' | 'body' | null>(null);
+    const user = useAuthStore(state => state.user);
+
+    // Actually simpler to just track active field and append for now, 
+    // but user asked "insert where I wrote".
+    // Let's use real refs to inputs
+    // Re-impl below with useRef
+
+    // We need real refs to DOM elements to manage cursor position insertion
+    // But since we are using controlled inputs, we just need to know WHERE the cursor was.
+    // However, React state updates might lose cursor position if not careful.
+    // Simplest approach: On Focus, set active field. On Click Variable:
+    // 1. Get current value of active field.
+    // 2. Get cursor pos? (Hard in functional update without refs or event).
+    // Let's just append to the end if we can't easily find cursor, OR try to use a ref to the element.
+
+    // Let's try appending first as a robust MVP, or let's try to do it right:
+    // We can use `document.activeElement` perhaps?
+    // Or just store the last focused element ref?
+
+    // Better strategy:
+    // Create handleFocus('subject') and handleFocus('body').
+    // When clicking a variable, use `activeField` to decide where to insert.
+    // Inserting at specific cursor index requires tracking `selectionStart` which changes on every keypress/click.
+    // That's too heavy.
+    // "Append to end" is safe. "Insert at cursor" requires a ref to the input validation.
+
+    // Let's go with "Append to end" as a consistent behavior, 
+    // OR: use a Ref to holding the Input Element and read `selectionStart` on the fly?
+    // Yes, if we have a ref to the input, we can read `ref.current.selectionStart`.
+
+    const subjectInputRef = useRef<HTMLInputElement>(null);
+    const bodyInputRef = useRef<HTMLTextAreaElement>(null);
+
+    const insertVariable = (variable: string) => {
+        if (!activeField) return;
+
+        const currentTemplates = (settings.email_templates as any) || {};
+        const overdue = currentTemplates.overdue || {};
+
+        let newValue = '';
+        let newCursorPos = 0;
+
+        if (activeField === 'subject') {
+            const currentVal = overdue.subject || '';
+            const input = subjectInputRef.current;
+            if (input) {
+                const start = input.selectionStart || currentVal.length;
+                const end = input.selectionEnd || currentVal.length;
+                newValue = currentVal.substring(0, start) + variable + currentVal.substring(end);
+                newCursorPos = start + variable.length;
+            } else {
+                newValue = currentVal + variable;
+            }
+
+            setSettings({
+                ...settings,
+                email_templates: {
+                    ...currentTemplates,
+                    overdue: { ...overdue, subject: newValue }
+                }
+            });
+            // Restore focus (timeout needed for React render cycle)
+            setTimeout(() => {
+                const el = subjectInputRef.current;
+                if (el) {
+                    el.focus();
+                    el.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }, 0);
+        } else {
+            const currentVal = overdue.body || '';
+            const input = bodyInputRef.current;
+            if (input) {
+                const start = input.selectionStart || currentVal.length;
+                const end = input.selectionEnd || currentVal.length;
+                newValue = currentVal.substring(0, start) + variable + currentVal.substring(end);
+                newCursorPos = start + variable.length;
+            } else {
+                newValue = currentVal + variable;
+            }
+
+            setSettings({
+                ...settings,
+                email_templates: {
+                    ...currentTemplates,
+                    overdue: { ...overdue, body: newValue }
+                }
+            });
+            setTimeout(() => {
+                const el = bodyInputRef.current;
+                if (el) {
+                    el.focus();
+                    el.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }, 0);
+        }
+    };
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await api.get('/settings');
+                if (res.data) {
+                    const sanitized = {
+                        ...res.data,
+                        smtp_host: res.data.smtp_host || '',
+                        smtp_port: res.data.smtp_port || 587,
+                        smtp_user: res.data.smtp_user || '',
+                        smtp_pass: res.data.smtp_password || '',
+                    };
+
+                    setSettings({
+                        ...sanitized,
+                        smtp_pass: res.data.smtp_password || '',
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch settings');
+            }
+        };
+        if (user?.role === 'admin') fetchSettings();
+    }, [user]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const payload = {
+                ...settings,
+                smtp_password: settings.smtp_pass
+            };
+            await api.put('/settings', payload);
+            alert('Settings updated successfully');
+        } catch (error: any) {
+            console.error(error);
+            const message = error.response?.data?.message || 'Failed to update settings';
+            alert(`${message} `);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleNumberChange = (field: keyof LibrarySettings, value: string) => {
+        const parsed = parseInt(value);
+        setSettings({ ...settings, [field]: isNaN(parsed) ? 0 : parsed });
+    };
+
+    if (user?.role !== 'admin') {
+        return <div className="p-8 text-center text-gray-500">Access denied. Admin only.</div>;
+    }
+
+    const availableVariables = [
+        { label: 'User Name', value: '{user}' },
+        { label: 'Book Title', value: '{book}' },
+        { label: 'Author', value: '{author}' },
+        { label: 'Publisher', value: '{publisher}' },
+        { label: 'Due Date', value: '{date}' },
+        { label: 'Borrow Date', value: '{borrow_date}' },
+        { label: 'Days Late', value: '{days_late}' },
+    ];
+
+    return (
+        <div className="max-w-[1920px] mx-auto p-8 lg:p-12">
+            <h1 className="text-2xl font-bold mb-6">Library Settings</h1>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Email Settings */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-2 mb-4 text-purple-700">
+                        <Mail size={20} />
+                        <h2 className="text-lg font-semibold">SMTP Configuration</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">SMTP Host</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={settings.smtp_host}
+                                onChange={(e) => setSettings({ ...settings, smtp_host: e.target.value })}
+                                placeholder="smtp.gmail.com"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Port</label>
+                            <input
+                                type="number"
+                                className="input"
+                                value={settings.smtp_port}
+                                onChange={(e) => handleNumberChange('smtp_port', e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Username</label>
+                            <input
+                                type="text"
+                                className="input"
+                                value={settings.smtp_user}
+                                onChange={(e) => setSettings({ ...settings, smtp_user: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Password</label>
+                            <input
+                                type="password"
+                                className="input"
+                                value={settings.smtp_pass}
+                                onChange={(e) => setSettings({ ...settings, smtp_pass: e.target.value })}
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1">From Email</label>
+                            <input
+                                type="email"
+                                className="input"
+                                value={settings.smtp_from}
+                                onChange={(e) => setSettings({ ...settings, smtp_from: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Test Email Section */}
+                    <div className="mt-6 pt-6 border-t border-gray-100">
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                            Test Connection
+                        </h3>
+                        <div className="flex gap-2">
+                            <input
+                                type="email"
+                                placeholder="Enter recipient email (e.g. your@email.com)"
+                                className="input flex-1"
+                                id="test-email-to"
+                            />
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    const toEmail = (document.getElementById('test-email-to') as HTMLInputElement).value;
+                                    if (!toEmail) return alert('Please enter a recipient email');
+
+                                    const btn = document.getElementById('test-email-btn') as HTMLButtonElement;
+                                    const originalText = btn.innerText;
+                                    btn.innerText = 'Sending...';
+                                    btn.disabled = true;
+
+                                    try {
+                                        await api.post('/settings/test-email', {
+                                            ...settings,
+                                            to_email: toEmail
+                                        });
+                                        alert('Test email sent successfully! Check your inbox.');
+                                    } catch (error: any) {
+                                        console.error(error);
+                                        alert(error.response?.data?.message || 'Failed to send test email');
+                                    } finally {
+                                        btn.innerText = originalText;
+                                        btn.disabled = false;
+                                    }
+                                }}
+                                id="test-email-btn"
+                                className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all shadow-md shadow-blue-100 flex items-center gap-2 whitespace-nowrap"
+                            >
+                                <Mail size={18} />
+                                Send Test Email
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Email Templates */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-2 mb-4 text-green-700">
+                        <Mail size={20} />
+                        <h2 className="text-lg font-semibold">Email Templates</h2>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-sm font-medium text-gray-900 border-b pb-1 mb-3">Overdue Warning Email</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Subject</label>
+                                    <input
+                                        ref={subjectInputRef}
+                                        type="text"
+                                        className={`input ${activeField === 'subject' ? 'ring-2 ring-blue-500 border-blue-500' : ''} `}
+                                        placeholder="Book Due: {book}"
+                                        value={(settings.email_templates as any)?.overdue?.subject || ''}
+                                        onFocus={() => setActiveField('subject')}
+                                        onChange={(e) => setSettings({
+                                            ...settings,
+                                            email_templates: {
+                                                ...(settings.email_templates as any || {}),
+                                                overdue: { ...(settings.email_templates as any)?.overdue, subject: e.target.value }
+                                            }
+                                        })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Body</label>
+                                    <div className="relative">
+                                        <textarea
+                                            ref={bodyInputRef}
+                                            className={`input min - h - [120px] ${activeField === 'body' ? 'ring-2 ring-blue-500 border-blue-500' : ''} `}
+                                            placeholder="Hello {user}, your book {book} is due on {date}..."
+                                            value={(settings.email_templates as any)?.overdue?.body || ''}
+                                            onFocus={() => setActiveField('body')}
+                                            onChange={(e) => setSettings({
+                                                ...settings,
+                                                email_templates: {
+                                                    ...(settings.email_templates as any || {}),
+                                                    overdue: { ...(settings.email_templates as any)?.overdue, body: e.target.value }
+                                                }
+                                            })}
+                                        />
+                                        <div className="mt-2">
+                                            <p className="text-xs text-gray-500 mb-2">Available Variables (Click to insert):</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {availableVariables.map((v) => (
+                                                    <button
+                                                        key={v.value}
+                                                        type="button"
+                                                        onClick={() => insertVariable(v.value)}
+                                                        className="px-2 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 border border-transparent rounded text-xs font-medium transition-colors cursor-pointer"
+                                                        title={`Insert ${v.label} `}
+                                                    >
+                                                        {v.value}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Automation Settings */}
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                    <div className="flex items-center gap-2 mb-4 text-blue-700">
+                        <Bell size={20} />
+                        <h2 className="text-lg font-semibold">Automation Rules</h2>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Loan Duration (Days)</label>
+                        <input
+                            type="number"
+                            className="input md:w-1/3"
+                            value={settings.overdue_days}
+                            onChange={(e) => handleNumberChange('overdue_days', e.target.value)}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Books are considered overdue after this many days.</p>
+                    </div>
+                </div>
+
+                <div className="flex justify-end">
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <Save size={18} />
+                        {isLoading ? 'Saving...' : 'Save Settings'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
