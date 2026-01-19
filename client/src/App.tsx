@@ -34,6 +34,7 @@ function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="" element={<Navigate to="/dashboard" replace />} />
         </Route>
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
