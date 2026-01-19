@@ -9,6 +9,13 @@ interface LibrarySettings {
     smtp_user: string;
     smtp_pass: string;
     smtp_from: string;
+    // Gmail
+    email_provider: 'smtp' | 'gmail';
+    gmail_user?: string;
+    gmail_client_id?: string;
+    gmail_client_secret?: string;
+    gmail_refresh_token?: string;
+
     overdue_days: number;
     email_templates?: {
         overdue?: {
@@ -25,6 +32,7 @@ export const Settings = () => {
         smtp_user: '',
         smtp_pass: '',
         smtp_from: '',
+        email_provider: 'smtp',
         overdue_days: 14
     });
     const [isLoading, setIsLoading] = useState(false);
@@ -138,11 +146,16 @@ export const Settings = () => {
                         smtp_port: res.data.smtp_port || 587,
                         smtp_user: res.data.smtp_user || '',
                         smtp_pass: res.data.smtp_password || '',
+                        email_provider: res.data.email_provider || 'smtp',
                     };
 
                     setSettings({
                         ...sanitized,
                         smtp_pass: res.data.smtp_password || '',
+                        gmail_user: res.data.gmail_user || '',
+                        gmail_client_id: res.data.gmail_client_id || '',
+                        gmail_client_secret: res.data.gmail_client_secret || '',
+                        gmail_refresh_token: res.data.gmail_refresh_token || '',
                     });
                 }
             } catch (error) {
@@ -202,54 +215,117 @@ export const Settings = () => {
                         <h2 className="text-lg font-semibold">SMTP Configuration</h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">SMTP Host</label>
-                            <input
-                                type="text"
-                                className="input"
-                                value={settings.smtp_host}
-                                onChange={(e) => setSettings({ ...settings, smtp_host: e.target.value })}
-                                placeholder="smtp.gmail.com"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Port</label>
-                            <input
-                                type="number"
-                                className="input"
-                                value={settings.smtp_port}
-                                onChange={(e) => handleNumberChange('smtp_port', e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Username</label>
-                            <input
-                                type="text"
-                                className="input"
-                                value={settings.smtp_user}
-                                onChange={(e) => setSettings({ ...settings, smtp_user: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Password</label>
-                            <input
-                                type="password"
-                                className="input"
-                                value={settings.smtp_pass}
-                                onChange={(e) => setSettings({ ...settings, smtp_pass: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-medium mb-1">From Email</label>
-                            <input
-                                type="email"
-                                className="input"
-                                value={settings.smtp_from}
-                                onChange={(e) => setSettings({ ...settings, smtp_from: e.target.value })}
-                            />
-                        </div>
+                    <div className="flex bg-gray-100 p-1 rounded-lg mb-6 w-fit">
+                        <button
+                            type="button"
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${settings.email_provider === 'smtp' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            onClick={() => setSettings({ ...settings, email_provider: 'smtp' })}
+                        >
+                            SMTP Server
+                        </button>
+                        <button
+                            type="button"
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${settings.email_provider === 'gmail' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            onClick={() => setSettings({ ...settings, email_provider: 'gmail' })}
+                        >
+                            Gmail API (HTTP)
+                        </button>
                     </div>
+
+                    {settings.email_provider === 'smtp' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">SMTP Host</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={settings.smtp_host}
+                                    onChange={(e) => setSettings({ ...settings, smtp_host: e.target.value })}
+                                    placeholder="smtp.gmail.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Port</label>
+                                <input
+                                    type="number"
+                                    className="input"
+                                    value={settings.smtp_port}
+                                    onChange={(e) => handleNumberChange('smtp_port', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Username</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={settings.smtp_user}
+                                    onChange={(e) => setSettings({ ...settings, smtp_user: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Password</label>
+                                <input
+                                    type="password"
+                                    className="input"
+                                    value={settings.smtp_pass}
+                                    onChange={(e) => setSettings({ ...settings, smtp_pass: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium mb-1">From Email</label>
+                                <input
+                                    type="email"
+                                    className="input"
+                                    value={settings.smtp_from}
+                                    onChange={(e) => setSettings({ ...settings, smtp_from: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="bg-blue-50 text-blue-800 p-4 rounded-md text-sm">
+                                <p className="font-semibold mb-1">Why use Gmail API?</p>
+                                <p>This method uses HTTPS (Port 443) which bypasses hosting provider blocks on Ports 587/465.</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Gmail Address (Sender)</label>
+                                <input
+                                    type="email"
+                                    className="input"
+                                    value={settings.gmail_user || ''}
+                                    onChange={(e) => setSettings({ ...settings, gmail_user: e.target.value })}
+                                    placeholder="library@gmail.com"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Client ID</label>
+                                <input
+                                    type="text"
+                                    className="input font-mono text-xs"
+                                    value={settings.gmail_client_id || ''}
+                                    onChange={(e) => setSettings({ ...settings, gmail_client_id: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Client Secret</label>
+                                <input
+                                    type="password"
+                                    className="input font-mono text-xs"
+                                    value={settings.gmail_client_secret || ''}
+                                    onChange={(e) => setSettings({ ...settings, gmail_client_secret: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Refresh Token</label>
+                                <input
+                                    type="password"
+                                    className="input font-mono text-xs"
+                                    value={settings.gmail_refresh_token || ''}
+                                    onChange={(e) => setSettings({ ...settings, gmail_refresh_token: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Test Email Section */}
                     <div className="mt-6 pt-6 border-t border-gray-100">

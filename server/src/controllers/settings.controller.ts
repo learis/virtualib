@@ -8,6 +8,13 @@ const updateSettingsSchema = z.object({
     smtp_user: z.string().nullable().optional(),
     smtp_password: z.string().nullable().optional(),
     smtp_from: z.string().email().nullable().optional().or(z.literal('')),
+    // Gmail Fields
+    email_provider: z.enum(['smtp', 'gmail']).default('smtp'),
+    gmail_user: z.string().email().nullable().optional(),
+    gmail_client_id: z.string().nullable().optional(),
+    gmail_client_secret: z.string().nullable().optional(),
+    gmail_refresh_token: z.string().nullable().optional(),
+
     reminder_rules: z.any().optional(), // Flexible JSON
     email_templates: z.any().optional(),
 });
@@ -111,11 +118,17 @@ export const sendTestEmail = async (req: Request, res: Response) => {
 
         const { sendTestEmailDirect } = await import('../services/email.service');
         const result = await sendTestEmailDirect({
+            provider: (req.body.email_provider || 'smtp') as any,
             host: smtp_host,
             port: smtp_port,
             user: smtp_user,
             pass: smtp_pass,
-            from: smtp_from
+            from: smtp_from,
+            // Gmail
+            gmail_user: req.body.gmail_user,
+            gmail_client_id: req.body.gmail_client_id,
+            gmail_client_secret: req.body.gmail_client_secret,
+            gmail_refresh_token: req.body.gmail_refresh_token,
         }, to_email, { subject, html });
 
         if (result.success) {

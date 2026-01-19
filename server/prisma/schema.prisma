@@ -141,6 +141,13 @@ model Settings {
   library        Library  @relation(fields: [library_id], references: [id], onDelete: Cascade)
   smtp_host      String?
   smtp_port      Int?
+  email_provider String    @default("smtp") // "smtp" or "gmail"
+  
+  // Gmail API Credentials
+  gmail_user          String?
+  gmail_client_id     String?
+  gmail_client_secret String?
+  gmail_refresh_token String?
   smtp_user      String?
   smtp_password  String?
   smtp_from      String?
