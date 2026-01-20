@@ -1,94 +1,9 @@
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-
-// ... (imports remain the same, just adding Quill)
-
-// ... inside Settings component
-
-const subjectInputRef = useRef<HTMLInputElement>(null);
-const quillRef = useRef<ReactQuill>(null);
-
-const insertVariable = (variable: string) => {
-    if (!activeField) return;
-
-    const currentTemplates = (settings.email_templates as any) || {};
-    const overdue = currentTemplates.overdue || {};
-
-    if (activeField === 'subject') {
-        const currentVal = overdue.subject || '';
-        const input = subjectInputRef.current;
-        let newValue = '';
-        let newCursorPos = 0;
-
-        if (input) {
-            const start = input.selectionStart || currentVal.length;
-            const end = input.selectionEnd || currentVal.length;
-            newValue = currentVal.substring(0, start) + variable + currentVal.substring(end);
-            newCursorPos = start + variable.length;
-        } else {
-            newValue = currentVal + variable;
-        }
-
-        setSettings({
-            ...settings,
-            email_templates: {
-                ...currentTemplates,
-                overdue: { ...overdue, subject: newValue }
-            }
-        });
-        setTimeout(() => {
-            const el = subjectInputRef.current;
-            if (el) {
-                el.focus();
-                el.setSelectionRange(newCursorPos, newCursorPos);
-            }
-        }, 0);
-    } else {
-        // Body - Quill Editor Insertion
-        const quill = quillRef.current?.getEditor();
-        if (quill) {
-            const range = quill.getSelection(true); // true = focus if not focused
-            if (range) {
-                quill.insertText(range.index, variable);
-                // No need to manually update state here, Quill's onChange handles it
-            }
-        }
-    }
-};
-
-    // ... (rest of code) ...
-
-                                    <label className="block text-sm font-medium mb-1">Body</label>
-                                    <div className="relative" onClick={() => setActiveField('body')}>
-                                        <div className="h-[300px] mb-12">
-                                            <ReactQuill
-                                                ref={quillRef}
-                                                theme="snow"
-                                                className="h-full"
-                                                value={(settings.email_templates as any)?.overdue?.body || ''}
-                                                onChange={(value) => setSettings({
-                                                    ...settings,
-                                                    email_templates: {
-                                                        ...(settings.email_templates as any || {}),
-                                                        overdue: { ...(settings.email_templates as any)?.overdue, body: value }
-                                                    }
-                                                })}
-                                                onFocus={() => setActiveField('body')}
-                                                modules={{
-                                                    toolbar: [
-                                                        [{ 'header': [1, 2, false] }],
-                                                        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-                                                        [{'list': 'ordered'}, {'list': 'bullet'}],
-                                                        ['link'],
-                                                        ['clean']
-                                                    ],
-                                                }}
-                                            />
-                                        </div>
-                                        <div className="mt-2 text-right">
+import { useState, useEffect, useRef } from 'react';
 import { Save, Mail, Bell } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 interface LibrarySettings {
     smtp_host: string;
@@ -126,36 +41,8 @@ export const Settings = () => {
     const [activeField, setActiveField] = useState<'subject' | 'body' | null>(null);
     const user = useAuthStore(state => state.user);
 
-    // Actually simpler to just track active field and append for now, 
-    // but user asked "insert where I wrote".
-    // Let's use real refs to inputs
-    // Re-impl below with useRef
-
-    // We need real refs to DOM elements to manage cursor position insertion
-    // But since we are using controlled inputs, we just need to know WHERE the cursor was.
-    // However, React state updates might lose cursor position if not careful.
-    // Simplest approach: On Focus, set active field. On Click Variable:
-    // 1. Get current value of active field.
-    // 2. Get cursor pos? (Hard in functional update without refs or event).
-    // Let's just append to the end if we can't easily find cursor, OR try to use a ref to the element.
-
-    // Let's try appending first as a robust MVP, or let's try to do it right:
-    // We can use `document.activeElement` perhaps?
-    // Or just store the last focused element ref?
-
-    // Better strategy:
-    // Create handleFocus('subject') and handleFocus('body').
-    // When clicking a variable, use `activeField` to decide where to insert.
-    // Inserting at specific cursor index requires tracking `selectionStart` which changes on every keypress/click.
-    // That's too heavy.
-    // "Append to end" is safe. "Insert at cursor" requires a ref to the input validation.
-
-    // Let's go with "Append to end" as a consistent behavior, 
-    // OR: use a Ref to holding the Input Element and read `selectionStart` on the fly?
-    // Yes, if we have a ref to the input, we can read `ref.current.selectionStart`.
-
     const subjectInputRef = useRef<HTMLInputElement>(null);
-    const bodyInputRef = useRef<HTMLTextAreaElement>(null);
+    const quillRef = useRef<ReactQuill>(null);
 
     const insertVariable = (variable: string) => {
         if (!activeField) return;
@@ -163,12 +50,12 @@ export const Settings = () => {
         const currentTemplates = (settings.email_templates as any) || {};
         const overdue = currentTemplates.overdue || {};
 
-        let newValue = '';
-        let newCursorPos = 0;
-
         if (activeField === 'subject') {
             const currentVal = overdue.subject || '';
             const input = subjectInputRef.current;
+            let newValue = '';
+            let newCursorPos = 0;
+
             if (input) {
                 const start = input.selectionStart || currentVal.length;
                 const end = input.selectionEnd || currentVal.length;
@@ -185,7 +72,6 @@ export const Settings = () => {
                     overdue: { ...overdue, subject: newValue }
                 }
             });
-            // Restore focus (timeout needed for React render cycle)
             setTimeout(() => {
                 const el = subjectInputRef.current;
                 if (el) {
@@ -194,31 +80,15 @@ export const Settings = () => {
                 }
             }, 0);
         } else {
-            const currentVal = overdue.body || '';
-            const input = bodyInputRef.current;
-            if (input) {
-                const start = input.selectionStart || currentVal.length;
-                const end = input.selectionEnd || currentVal.length;
-                newValue = currentVal.substring(0, start) + variable + currentVal.substring(end);
-                newCursorPos = start + variable.length;
-            } else {
-                newValue = currentVal + variable;
+            // Body - Quill Editor Insertion
+            const quill = quillRef.current?.getEditor();
+            if (quill) {
+                const range = quill.getSelection(true); // true = focus if not focused
+                if (range) {
+                    quill.insertText(range.index, variable);
+                    // No need to manually update state here, Quill's onChange handles it
+                }
             }
-
-            setSettings({
-                ...settings,
-                email_templates: {
-                    ...currentTemplates,
-                    overdue: { ...overdue, body: newValue }
-                }
-            });
-            setTimeout(() => {
-                const el = bodyInputRef.current;
-                if (el) {
-                    el.focus();
-                    el.setSelectionRange(newCursorPos, newCursorPos);
-                }
-            }, 0);
         }
     };
 
@@ -493,24 +363,35 @@ export const Settings = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Body</label>
-                                    <div className="relative">
-                                        <textarea
-                                            ref={bodyInputRef}
-                                            className={`input min - h - [120px] ${activeField === 'body' ? 'ring-2 ring-blue-500 border-blue-500' : ''} `}
-                                            placeholder="Hello {user}, your book {book} is due on {date}..."
-                                            value={(settings.email_templates as any)?.overdue?.body || ''}
-                                            onFocus={() => setActiveField('body')}
-                                            onChange={(e) => setSettings({
-                                                ...settings,
-                                                email_templates: {
-                                                    ...(settings.email_templates as any || {}),
-                                                    overdue: { ...(settings.email_templates as any)?.overdue, body: e.target.value }
-                                                }
-                                            })}
-                                        />
-                                        <div className="mt-2">
+                                    <div className="relative" onClick={() => setActiveField('body')}>
+                                        <div className="h-[300px] mb-12">
+                                            <ReactQuill
+                                                ref={quillRef}
+                                                theme="snow"
+                                                className="h-full"
+                                                value={(settings.email_templates as any)?.overdue?.body || ''}
+                                                onChange={(value) => setSettings({
+                                                    ...settings,
+                                                    email_templates: {
+                                                        ...(settings.email_templates as any || {}),
+                                                        overdue: { ...(settings.email_templates as any)?.overdue, body: value }
+                                                    }
+                                                })}
+                                                onFocus={() => setActiveField('body')}
+                                                modules={{
+                                                    toolbar: [
+                                                        [{ 'header': [1, 2, false] }],
+                                                        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+                                                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                                        ['link'],
+                                                        ['clean']
+                                                    ],
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="mt-2 text-right">
                                             <p className="text-xs text-gray-500 mb-2">Available Variables (Click to insert):</p>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-2 justify-end">
                                                 {availableVariables.map((v) => (
                                                     <button
                                                         key={v.value}
