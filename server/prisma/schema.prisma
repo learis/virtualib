@@ -153,6 +153,7 @@ model Settings {
   smtp_from      String?
   reminder_rules Json?
   email_templates Json?
+  overdue_days    Int      @default(14)
 
   @@map("settings")
 }

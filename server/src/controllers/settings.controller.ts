@@ -17,6 +17,7 @@ const updateSettingsSchema = z.object({
 
     reminder_rules: z.any().optional(), // Flexible JSON
     email_templates: z.any().optional(),
+    overdue_days: z.number().int().optional(),
 });
 
 export const getSettings = async (req: Request, res: Response) => {
