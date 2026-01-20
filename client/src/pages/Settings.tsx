@@ -1,4 +1,91 @@
-import { useState, useEffect, useRef } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
+// ... (imports remain the same, just adding Quill)
+
+// ... inside Settings component
+
+const subjectInputRef = useRef<HTMLInputElement>(null);
+const quillRef = useRef<ReactQuill>(null);
+
+const insertVariable = (variable: string) => {
+    if (!activeField) return;
+
+    const currentTemplates = (settings.email_templates as any) || {};
+    const overdue = currentTemplates.overdue || {};
+
+    if (activeField === 'subject') {
+        const currentVal = overdue.subject || '';
+        const input = subjectInputRef.current;
+        let newValue = '';
+        let newCursorPos = 0;
+
+        if (input) {
+            const start = input.selectionStart || currentVal.length;
+            const end = input.selectionEnd || currentVal.length;
+            newValue = currentVal.substring(0, start) + variable + currentVal.substring(end);
+            newCursorPos = start + variable.length;
+        } else {
+            newValue = currentVal + variable;
+        }
+
+        setSettings({
+            ...settings,
+            email_templates: {
+                ...currentTemplates,
+                overdue: { ...overdue, subject: newValue }
+            }
+        });
+        setTimeout(() => {
+            const el = subjectInputRef.current;
+            if (el) {
+                el.focus();
+                el.setSelectionRange(newCursorPos, newCursorPos);
+            }
+        }, 0);
+    } else {
+        // Body - Quill Editor Insertion
+        const quill = quillRef.current?.getEditor();
+        if (quill) {
+            const range = quill.getSelection(true); // true = focus if not focused
+            if (range) {
+                quill.insertText(range.index, variable);
+                // No need to manually update state here, Quill's onChange handles it
+            }
+        }
+    }
+};
+
+    // ... (rest of code) ...
+
+                                    <label className="block text-sm font-medium mb-1">Body</label>
+                                    <div className="relative" onClick={() => setActiveField('body')}>
+                                        <div className="h-[300px] mb-12">
+                                            <ReactQuill
+                                                ref={quillRef}
+                                                theme="snow"
+                                                className="h-full"
+                                                value={(settings.email_templates as any)?.overdue?.body || ''}
+                                                onChange={(value) => setSettings({
+                                                    ...settings,
+                                                    email_templates: {
+                                                        ...(settings.email_templates as any || {}),
+                                                        overdue: { ...(settings.email_templates as any)?.overdue, body: value }
+                                                    }
+                                                })}
+                                                onFocus={() => setActiveField('body')}
+                                                modules={{
+                                                    toolbar: [
+                                                        [{ 'header': [1, 2, false] }],
+                                                        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+                                                        [{'list': 'ordered'}, {'list': 'bullet'}],
+                                                        ['link'],
+                                                        ['clean']
+                                                    ],
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="mt-2 text-right">
 import { Save, Mail, Bell } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
