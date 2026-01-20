@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Save, Mail, Bell } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import SimpleEditor, { type SimpleEditorHandle } from '../components/SimpleEditor';
 
 interface LibrarySettings {
     smtp_host: string;
@@ -41,61 +40,46 @@ export const Settings = () => {
     const user = useAuthStore(state => state.user);
 
     const subjectInputRef = useRef<HTMLInputElement>(null);
-    // Use the handle interface for the custom editor
-    const simpleEditorRef = useRef<SimpleEditorHandle>(null);
+    const bodyInputRef = useRef<HTMLTextAreaElement>(null);
 
     const insertVariable = (variable: string) => {
-        // Always focus relevant field logic
         const currentTemplates = (settings.email_templates as any) || {};
         const overdue = currentTemplates.overdue || {};
 
-        if (activeField === 'subject') {
-            const currentVal = overdue.subject || '';
-            const input = subjectInputRef.current;
-            let newValue = '';
-            let newCursorPos = 0;
+        let input: HTMLInputElement | HTMLTextAreaElement | null = null;
+        let currentValue = '';
+        let fieldKey = '';
 
-            if (input) {
-                const start = input.selectionStart || currentVal.length;
-                const end = input.selectionEnd || currentVal.length;
-                newValue = currentVal.substring(0, start) + variable + currentVal.substring(end);
-                newCursorPos = start + variable.length;
-            } else {
-                newValue = currentVal + variable;
-            }
+        if (activeField === 'subject') {
+            input = subjectInputRef.current;
+            currentValue = overdue.subject || '';
+            fieldKey = 'subject';
+        } else if (activeField === 'body') {
+            input = bodyInputRef.current;
+            currentValue = overdue.body || '';
+            fieldKey = 'body';
+        }
+
+        if (input && fieldKey) {
+            const start = input.selectionStart || currentValue.length;
+            const end = input.selectionEnd || currentValue.length;
+            const newValue = currentValue.substring(0, start) + variable + currentValue.substring(end);
+            const newCursorPos = start + variable.length;
 
             setSettings({
                 ...settings,
                 email_templates: {
                     ...currentTemplates,
-                    overdue: { ...overdue, subject: newValue }
+                    overdue: { ...overdue, [fieldKey]: newValue }
                 }
             });
+
             setTimeout(() => {
-                const el = subjectInputRef.current;
-                if (el) {
-                    el.focus();
-                    el.setSelectionRange(newCursorPos, newCursorPos);
+                if (input) {
+                    input.focus();
+                    input.setSelectionRange(newCursorPos, newCursorPos);
                 }
             }, 0);
-        } else {
-            // Body - SimpleEditor Insertion
-            // We just delegate to the component's imperative handle
-            if (simpleEditorRef.current) {
-                simpleEditorRef.current.insertAtCursor(variable);
-                // State update happens via onChange in the component
-                // but we might want to manually focus if needed, handled inside insertAtCursor
-            } else {
-                // Fallback if ref is missing (should verify this path)
-                const currentVal = overdue.body || '';
-                setSettings({
-                    ...settings,
-                    email_templates: {
-                        ...currentTemplates,
-                        overdue: { ...overdue, body: currentVal + variable }
-                    }
-                });
-            }
         }
     };
 
@@ -370,22 +354,21 @@ export const Settings = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Body</label>
-                                    <div className="relative" onClick={() => setActiveField('body')}>
-                                        <div className="h-[350px] mb-2">
-                                            <SimpleEditor
-                                                ref={simpleEditorRef}
-                                                className="h-full"
-                                                value={(settings.email_templates as any)?.overdue?.body || ''}
-                                                onChange={(value) => setSettings({
-                                                    ...settings,
-                                                    email_templates: {
-                                                        ...(settings.email_templates as any || {}),
-                                                        overdue: { ...(settings.email_templates as any)?.overdue, body: value }
-                                                    }
-                                                })}
-                                                placeholder="Write your email template here..."
-                                            />
-                                        </div>
+                                    <div className="relative">
+                                        <textarea
+                                            ref={bodyInputRef}
+                                            className={`input h-[300px] font-mono text-sm leading-relaxed ${activeField === 'body' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
+                                            value={(settings.email_templates as any)?.overdue?.body || ''}
+                                            onChange={(e) => setSettings({
+                                                ...settings,
+                                                email_templates: {
+                                                    ...(settings.email_templates as any || {}),
+                                                    overdue: { ...(settings.email_templates as any)?.overdue, body: e.target.value }
+                                                }
+                                            })}
+                                            onFocus={() => setActiveField('body')}
+                                            placeholder="Write your email body here. Use variables like {user}, {book}..."
+                                        />
                                         <div className="mt-2 text-right">
                                             <p className="text-xs text-gray-500 mb-2">Available Variables (Click to insert):</p>
                                             <div className="flex flex-wrap gap-2 justify-end">
