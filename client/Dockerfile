@@ -1,6 +1,8 @@
 FROM node:20-alpine as build
 WORKDIR /app
-COPY package*.json ./
+COPY package.json ./
+RUN rm -f package-lock.json
+RUN npm cache clean --force
 RUN npm install --legacy-peer-deps
 COPY . .
 ENV VITE_API_URL=/api
