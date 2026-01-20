@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json ./
 RUN rm -f package-lock.json
 RUN npm cache clean --force
-RUN npm install --legacy-peer-deps
+RUN npm install
 COPY . .
 ENV VITE_API_URL=/api
 RUN npm run build
