@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Save, Mail, Bell } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import SimpleEditor, { SimpleEditorHandle } from '../components/SimpleEditor';
 
 interface LibrarySettings {
     smtp_host: string;
@@ -42,11 +41,11 @@ export const Settings = () => {
     const user = useAuthStore(state => state.user);
 
     const subjectInputRef = useRef<HTMLInputElement>(null);
-    const quillRef = useRef<any>(null);
+    // Use the handle interface for the custom editor
+    const simpleEditorRef = useRef<SimpleEditorHandle>(null);
 
     const insertVariable = (variable: string) => {
-        if (!activeField) return;
-
+        // Always focus relevant field logic
         const currentTemplates = (settings.email_templates as any) || {};
         const overdue = currentTemplates.overdue || {};
 
@@ -80,14 +79,22 @@ export const Settings = () => {
                 }
             }, 0);
         } else {
-            // Body - Quill Editor Insertion
-            const quill = quillRef.current?.getEditor();
-            if (quill) {
-                const range = quill.getSelection(true); // true = focus if not focused
-                if (range) {
-                    quill.insertText(range.index, variable);
-                    // No need to manually update state here, Quill's onChange handles it
-                }
+            // Body - SimpleEditor Insertion
+            // We just delegate to the component's imperative handle
+            if (simpleEditorRef.current) {
+                simpleEditorRef.current.insertAtCursor(variable);
+                // State update happens via onChange in the component
+                // but we might want to manually focus if needed, handled inside insertAtCursor
+            } else {
+                // Fallback if ref is missing (should verify this path)
+                const currentVal = overdue.body || '';
+                setSettings({
+                    ...settings,
+                    email_templates: {
+                        ...currentTemplates,
+                        overdue: { ...overdue, body: currentVal + variable }
+                    }
+                });
             }
         }
     };
@@ -364,29 +371,19 @@ export const Settings = () => {
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Body</label>
                                     <div className="relative" onClick={() => setActiveField('body')}>
-                                        <div className="h-[300px] mb-12">
-                                            <ReactQuill
-                                                ref={quillRef}
-                                                theme="snow"
+                                        <div className="h-[350px] mb-2">
+                                            <SimpleEditor
+                                                ref={simpleEditorRef}
                                                 className="h-full"
                                                 value={(settings.email_templates as any)?.overdue?.body || ''}
-                                                onChange={(value: string) => setSettings({
+                                                onChange={(value) => setSettings({
                                                     ...settings,
                                                     email_templates: {
                                                         ...(settings.email_templates as any || {}),
                                                         overdue: { ...(settings.email_templates as any)?.overdue, body: value }
                                                     }
                                                 })}
-                                                onFocus={() => setActiveField('body')}
-                                                modules={{
-                                                    toolbar: [
-                                                        [{ 'header': [1, 2, false] }],
-                                                        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-                                                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                                                        ['link'],
-                                                        ['clean']
-                                                    ],
-                                                }}
+                                                placeholder="Write your email template here..."
                                             />
                                         </div>
                                         <div className="mt-2 text-right">
