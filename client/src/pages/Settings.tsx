@@ -355,9 +355,40 @@ export const Settings = () => {
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Body</label>
                                     <div className="relative">
+                                        {/* HTML Tools */}
+                                        <div className="absolute top-2 right-2 flex flex-wrap gap-1 z-10 max-w-[340px] justify-end">
+                                            {[
+                                                { label: 'H1', value: '<h1 style="color:#111827; margin-bottom:10px;">Header 1</h1>', title: 'Large Header' },
+                                                { label: 'H2', value: '<h2 style="color:#374151; margin-bottom:8px;">Header 2</h2>', title: 'Medium Header' },
+                                                { label: 'B', value: '<b>Bold</b>', title: 'Bold' },
+                                                { label: 'I', value: '<i>Italic</i>', title: 'Italic' },
+                                                { label: 'U', value: '<u>Underline</u>', title: 'Underline' },
+                                                { label: 'BR', value: '<br/>', title: 'Line Break' },
+                                                { label: 'HR', value: '<hr style="border:0; border-top:1px solid #e5e7eb; margin:15px 0;"/>', title: 'Horizontal Line' },
+                                                { label: 'P', value: '<p style="margin-bottom:10px;">Paragraph</p>', title: 'Paragraph' },
+                                                { label: 'DIV', value: '<div style="padding:10px;">Div Container</div>', title: 'Div Container' },
+                                                { label: 'Center', value: '<div style="text-align:center;">Centered Text</div>', title: 'Center Align' },
+                                                { label: 'IMG', value: '<img src="https://via.placeholder.com/300" alt="Image" style="max-width:100%; border-radius:5px;" />', title: 'Image' },
+                                                { label: 'UL', value: '<ul style="padding-left:20px;">\n  <li>List Item 1</li>\n  <li>List Item 2</li>\n</ul>', title: 'Unordered List' },
+                                                { label: 'LI', value: '<li>List Item</li>', title: 'List Item' },
+                                                { label: 'Button', value: '<a href="#" style="display:inline-block; background-color:#2563eb; color:white; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">Action Button</a>', title: 'Call to Action Button' },
+                                                { label: 'Box', value: '<div style="background-color:#f3f4f6; padding:15px; border-radius:8px; border:1px solid #e5e7eb;">Highlighted Box Content</div>', title: 'Gray Highlight Box' },
+                                            ].map((tag) => (
+                                                <button
+                                                    key={tag.label}
+                                                    type="button"
+                                                    onClick={() => insertVariable(tag.value)}
+                                                    className="px-2 h-7 flex items-center justify-center bg-gray-50 hover:bg-white border border-gray-200 hover:border-blue-300 rounded text-[10px] font-bold text-gray-600 hover:text-blue-600 transition-all shadow-sm"
+                                                    title={tag.title}
+                                                >
+                                                    {tag.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
                                         <textarea
                                             ref={bodyInputRef}
-                                            className={`input h-[300px] font-mono text-sm leading-relaxed ${activeField === 'body' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
+                                            className={`input h-[300px] font-mono text-sm leading-relaxed pt-12 ${activeField === 'body' ? 'ring-2 ring-blue-500 border-blue-500' : ''}`}
                                             value={(settings.email_templates as any)?.overdue?.body || ''}
                                             onChange={(e) => setSettings({
                                                 ...settings,
@@ -402,10 +433,17 @@ export const Settings = () => {
                     <div>
                         <label className="block text-sm font-medium mb-1">Loan Duration (Days)</label>
                         <input
-                            type="number"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             className="input md:w-1/3"
                             value={settings.overdue_days}
-                            onChange={(e) => handleNumberChange('overdue_days', e.target.value)}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d+$/.test(val)) {
+                                    handleNumberChange('overdue_days', val === '' ? '0' : val);
+                                }
+                            }}
                         />
                         <p className="text-xs text-gray-500 mt-1">Books are considered overdue after this many days.</p>
                     </div>
