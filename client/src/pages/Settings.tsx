@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Save, Mail, Bell } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import SimpleEditor, { SimpleEditorHandle } from '../components/SimpleEditor';
+import SimpleEditor, { type SimpleEditorHandle } from '../components/SimpleEditor';
 
 interface LibrarySettings {
     smtp_host: string;
