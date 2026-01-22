@@ -48,9 +48,7 @@ export const Books = () => {
     }, []);
 
     const handleSaveBook = async (data: CreateBookDto) => {
-        console.log('handleSaveBook CALLED with:', data); // DEBUG LOG
         if (editingBook && !isReadOnlyModal) {
-            console.log('Updating book...', editingBook.id); // DEBUG LOG
             await updateBook(editingBook.id, data);
         } else if (!isReadOnlyModal) {
             await createBook(data);
