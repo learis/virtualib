@@ -15,6 +15,8 @@ import roleRoutes from './routes/role.routes';
 
 dotenv.config();
 
+console.log("🚀 SERVER VERSION: DEBUG-UPDATE-V2 🚀"); // Verification Log
+
 const app = express();
 const PORT = process.env.PORT || 3000; // Changed port variable name and default value
 
