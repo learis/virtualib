@@ -134,10 +134,15 @@ export const updateBook = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Book not found' });
         }
 
+        console.log('[updateBook] Incoming Body:', req.body);
+
         const validation = updateBookSchema.safeParse(req.body);
         if (!validation.success) {
+            console.error('[updateBook] Validation Error:', validation.error);
             return res.status(400).json({ message: 'Invalid data', errors: validation.error.issues });
         }
+
+        console.log('[updateBook] Parsed Data:', validation.data);
 
         const { category_ids, ...bookData } = validation.data;
 
