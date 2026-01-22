@@ -12,6 +12,8 @@ const createBookSchema = z.object({
     publisher: z.string().min(1),
     cover_image_path: z.string().optional().or(z.literal('')),
     category_ids: z.array(z.string()).optional(), // Array of Category IDs
+    summary_tr: z.string().optional().nullable(),
+    summary_en: z.string().optional().nullable(),
 });
 
 const updateBookSchema = createBookSchema.partial();
@@ -84,8 +86,13 @@ export const createBook = async (req: Request, res: Response) => {
         const { category_ids, ...bookData } = validation.data;
 
         // AI Summary Generation
-        let summaries = { summary_tr: '', summary_en: '' };
-        if (process.env.OPENAI_API_KEY) {
+        let summaries = {
+            summary_tr: bookData.summary_tr || '',
+            summary_en: bookData.summary_en || ''
+        };
+
+        // Only generate if NOT provided by frontend AND API Key exists
+        if ((!summaries.summary_tr && !summaries.summary_en) && process.env.OPENAI_API_KEY) {
             const generated = await generateBookSummary(bookData.name, bookData.author);
             if (generated && !('error' in generated)) {
                 summaries = generated;

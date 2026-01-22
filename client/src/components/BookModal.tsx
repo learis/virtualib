@@ -212,13 +212,17 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                             <div>
                                 <label className="block text-xs font-semibold text-gray-400 mb-1">Published</label>
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     required
                                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                                     value={formData.publish_year}
                                     onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        setFormData({ ...formData, publish_year: isNaN(val) ? 0 : val });
+                                        const val = e.target.value;
+                                        if (val === '' || /^\d+$/.test(val)) {
+                                            setFormData({ ...formData, publish_year: val === '' ? 0 : parseInt(val) });
+                                        }
                                     }}
                                     disabled={isReadOnly}
                                 />
@@ -302,9 +306,9 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                                 setIsLoading(false);
                                             }
                                         }}
-                                        className="text-xs bg-purple-100 text-purple-700 px-3 py-1.5 rounded-full font-medium hover:bg-purple-200 transition-colors flex items-center gap-1"
+                                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full font-bold transition-all shadow-md shadow-indigo-200 flex items-center gap-1.5 hover:scale-105 active:scale-95"
                                     >
-                                        ✨ Generate AI Summaries
+                                        ✨ Generate Book Summary With AI
                                     </button>
                                 )}
                             </div>
