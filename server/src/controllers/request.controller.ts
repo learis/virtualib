@@ -62,7 +62,7 @@ export const getRequests = async (req: Request, res: Response) => {
                 book: r.book,
                 user: r.user,
                 status: r.status, // 'return_requested'
-                date: r.borrowed_at // Using borrowed_at as proxy since we lack updated_at
+                date: r.updated_at // Correctly reflects when the return was requested
             }))
         ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
