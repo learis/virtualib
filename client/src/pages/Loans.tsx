@@ -318,12 +318,12 @@ export const Loans = () => {
                                             </>
                                         )
                                     ) : (
-                                        loan.status === 'active' ? (
+                                        (loan.status === 'active' || loan.status === 'return_rejected') ? (
                                             <button
                                                 onClick={() => handleRequestReturn(loan.id)}
                                                 className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-bold transition-colors whitespace-nowrap"
                                             >
-                                                Return Book
+                                                {loan.status === 'return_rejected' ? 'Try Return Again' : 'Return Book'}
                                             </button>
                                         ) : loan.status === 'return_requested' && (
                                             <div className="flex items-center gap-2">
