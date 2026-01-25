@@ -84,6 +84,7 @@ export const Loans = () => {
         switch (status) {
             case 'active': return 'bg-blue-100 text-blue-800 border-blue-200';
             case 'return_requested': return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'return_rejected': return 'bg-red-50 text-red-800 border-red-200';
             case 'returned': return 'bg-gray-100 text-gray-800 border-gray-200';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
@@ -91,6 +92,7 @@ export const Loans = () => {
 
     const getStatusLabel = (status: string) => {
         if (status === 'return_requested') return 'Return Requested';
+        if (status === 'return_rejected') return 'Return Rejected';
         if (status === 'returned') return 'Returned';
         return status.charAt(0).toUpperCase() + status.slice(1);
     };

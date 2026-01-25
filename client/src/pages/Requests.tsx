@@ -54,12 +54,7 @@ export const Requests = () => {
     const handleReturnReject = async (id: string) => {
         try {
             await rejectReturn(id);
-            setRequests(prev => prev.filter(r => r.id !== id)); // Remove from list since it goes back to active loan, hence not a 'request' anymore in this view potentially? 
-            // Actually, if it goes back to 'active', it is no longer a 'return' request. So removing it from 'return requests' list is correct.
-            // But wait, 'getRequests' fetches 'active' loans as 'return' requests??
-            // Let's check getRequests controller logic.
-            // It fetches BorrowRequests AND ReturnRequests (loans with status 'return_requested' or 'returned').
-            // If status becomes 'active', it will DROP from this list. Correct.
+            setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'return_rejected' as any } : r));
         } catch (error) {
             alert('Failed to reject return');
         }
@@ -77,12 +72,14 @@ export const Requests = () => {
             case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
             case 'pending': return 'bg-orange-100 text-orange-800 border-orange-200';
             case 'return_requested': return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'return_rejected': return 'bg-red-50 text-red-800 border-red-200';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };
 
     const getStatusLabel = (status: string) => {
         if (status === 'return_requested') return 'Return Requested';
+        if (status === 'return_rejected') return 'Return Rejected';
         if (status === 'returned') return 'Returned';
         return status.charAt(0).toUpperCase() + status.slice(1);
     };
@@ -312,13 +309,22 @@ export const Requests = () => {
                                         </>
                                     )}
                                     {req.type === 'return' && req.status === 'return_requested' && (
-                                        <button
-                                            onClick={() => handleReturnApprove(req.id)}
-                                            className="px-3 py-1 rounded-md bg-green-50 text-green-600 hover:bg-green-100 text-xs font-bold transition-colors"
-                                            title="Confirm Return"
-                                        >
-                                            Approve Return
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() => handleReturnReject(req.id)}
+                                                className="px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 text-xs font-bold transition-colors border border-red-200"
+                                                title="Reject Return"
+                                            >
+                                                Reject
+                                            </button>
+                                            <button
+                                                onClick={() => handleReturnApprove(req.id)}
+                                                className="px-3 py-1.5 rounded-md bg-green-50 text-green-600 hover:bg-green-100 text-xs font-bold transition-colors border border-green-200"
+                                                title="Confirm Return"
+                                            >
+                                                Approve
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             )}

@@ -37,7 +37,7 @@ export const getRequests = async (req: Request, res: Response) => {
         const returnRequests = await prisma.bookLoan.findMany({
             where: {
                 ...where,
-                status: { in: ['return_requested', 'returned'] }
+                status: { in: ['return_requested', 'returned', 'return_rejected'] }
             },
             include: {
                 book: true,

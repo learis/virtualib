@@ -150,7 +150,7 @@ export const rejectReturn = async (req: Request, res: Response) => {
 
         const updatedLoan = await prisma.bookLoan.update({
             where: { id },
-            data: { status: 'active' }
+            data: { status: 'return_rejected' }
         });
 
         res.json(updatedLoan);
