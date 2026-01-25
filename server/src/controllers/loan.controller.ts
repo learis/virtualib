@@ -132,3 +132,59 @@ export const approveReturn = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Failed to return book' });
     }
 };
+
+// Admin rejects return
+export const rejectReturn = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params as { id: string };
+        const user = (req as any).user;
+
+        const loan = await prisma.bookLoan.findUnique({ where: { id } });
+        if (!loan || loan.library_id !== user.library_id) {
+            return res.status(404).json({ message: 'Loan not found' });
+        }
+
+        if (loan.status !== 'return_requested') {
+            return res.status(400).json({ message: 'Loan is not pending return' });
+        }
+
+        const updatedLoan = await prisma.bookLoan.update({
+            where: { id },
+            data: { status: 'active' }
+        });
+
+        res.json(updatedLoan);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to reject return' });
+    }
+};
+
+// User cancels return request
+export const cancelReturnRequest = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params as { id: string };
+        const user = (req as any).user;
+
+        const loan = await prisma.bookLoan.findUnique({ where: { id } });
+        if (!loan || loan.library_id !== user.library_id) {
+            return res.status(404).json({ message: 'Loan not found' });
+        }
+
+        if (loan.user_id !== user.id) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        if (loan.status !== 'return_requested') {
+            return res.status(400).json({ message: 'No active return request' });
+        }
+
+        const updatedLoan = await prisma.bookLoan.update({
+            where: { id },
+            data: { status: 'active' }
+        });
+
+        res.json(updatedLoan);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to cancel request' });
+    }
+};

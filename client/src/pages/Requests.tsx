@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Check, X, Clock, BookOpen, AlertCircle, ArrowLeftRight, Search, Filter, Calendar, RefreshCcw, XCircle } from 'lucide-react';
-import { getRequests, updateRequestStatus, approveReturn, type UnifiedRequest } from '../services/loanService';
+import { getRequests, updateRequestStatus, approveReturn, rejectReturn, type UnifiedRequest } from '../services/loanService';
 import { useAuthStore } from '../store/authStore';
 
 export const Requests = () => {
@@ -48,6 +48,20 @@ export const Requests = () => {
             // Note: 'returned' status is visually handled as Approved (Green)
         } catch (error) {
             alert('Failed to approve return');
+        }
+    };
+
+    const handleReturnReject = async (id: string) => {
+        try {
+            await rejectReturn(id);
+            setRequests(prev => prev.filter(r => r.id !== id)); // Remove from list since it goes back to active loan, hence not a 'request' anymore in this view potentially? 
+            // Actually, if it goes back to 'active', it is no longer a 'return' request. So removing it from 'return requests' list is correct.
+            // But wait, 'getRequests' fetches 'active' loans as 'return' requests??
+            // Let's check getRequests controller logic.
+            // It fetches BorrowRequests AND ReturnRequests (loans with status 'return_requested' or 'returned').
+            // If status becomes 'active', it will DROP from this list. Correct.
+        } catch (error) {
+            alert('Failed to reject return');
         }
     };
 
@@ -452,15 +466,26 @@ export const Requests = () => {
                                         </>
                                     )}
                                     {selectedRequest.type === 'return' && selectedRequest.status === 'return_requested' && (
-                                        <button
-                                            onClick={() => {
-                                                handleReturnApprove(selectedRequest.id);
-                                                setSelectedRequest(null);
-                                            }}
-                                            className="flex-1 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                                        >
-                                            Confirm Book Return
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={() => {
+                                                    handleReturnReject(selectedRequest.id);
+                                                    setSelectedRequest(null);
+                                                }}
+                                                className="flex-1 py-2.5 border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors"
+                                            >
+                                                Reject Return
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    handleReturnApprove(selectedRequest.id);
+                                                    setSelectedRequest(null);
+                                                }}
+                                                className="flex-1 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                                            >
+                                                Confirm Book Return
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             )}

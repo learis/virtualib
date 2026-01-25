@@ -34,6 +34,16 @@ export const approveReturn = async (id: string) => {
     return response.data;
 };
 
+export const rejectReturn = async (id: string) => {
+    const response = await api.post(`/loans/${id}/reject`);
+    return response.data;
+};
+
+export const cancelReturnRequest = async (id: string) => {
+    const response = await api.post(`/loans/${id}/cancel-return`);
+    return response.data;
+};
+
 // Re-export this if needed elsewhere or remove if not used
 export const createRequest = async (bookId: string) => {
     const response = await api.post('/requests', { book_id: bookId });
