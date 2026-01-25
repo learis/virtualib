@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BookOpen, User as UserIcon, Clock, AlertCircle, Search, Filter, Calendar, RefreshCcw, XCircle, CheckCircle } from 'lucide-react';
-import { getLoans, requestReturn, approveReturn, cancelReturnRequest, type BookLoan } from '../services/loanService';
+import { getLoans, requestReturn, approveReturn, rejectReturn, cancelReturnRequest, type BookLoan } from '../services/loanService';
 import { useAuthStore } from '../store/authStore';
 
 export const Loans = () => {
@@ -282,17 +282,28 @@ export const Loans = () => {
 
                                 <div className="flex items-center gap-2">
                                     {isAdmin ? (
-                                        (loan.status === 'return_requested' || loan.status === 'active') && (
-                                            <button
-                                                onClick={() => handleApproveReturn(loan.id)}
-                                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap
-                                                    ${loan.status === 'return_requested'
-                                                        ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
-                                                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
-                                                    }`}
-                                            >
-                                                {loan.status === 'return_requested' ? 'Approve Return' : 'Mark Returned'}
-                                            </button>
+                                        (loan.status === 'return_requested' || loan.status === 'active' || loan.status === 'return_rejected') && (
+                                            <>
+                                                {loan.status === 'return_requested' && (
+                                                    <button
+                                                        onClick={() => handleRejectReturn(loan.id)}
+                                                        className="px-3 py-1.5 rounded-md text-red-600 hover:bg-red-50 text-xs font-bold transition-colors border border-red-200"
+                                                        title="Reject Return"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleApproveReturn(loan.id)}
+                                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap
+                                                        ${loan.status === 'return_requested'
+                                                            ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                                                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                                                        }`}
+                                                >
+                                                    {loan.status === 'return_requested' ? 'Approve Return' : 'Mark Returned'}
+                                                </button>
+                                            </>
                                         )
                                     ) : (
                                         loan.status === 'active' ? (
