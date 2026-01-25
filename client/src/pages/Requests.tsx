@@ -68,11 +68,11 @@ export const Requests = () => {
     const getStatusStyle = (status: string) => {
         switch (status) {
             case 'approved': return 'bg-green-100 text-green-800 border-green-200';
-            case 'returned': return 'bg-green-100 text-green-800 border-green-200';
-            case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+            case 'returned': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'rejected': return 'bg-gray-100 text-gray-600 border-gray-200';
             case 'pending': return 'bg-orange-100 text-orange-800 border-orange-200';
             case 'return_requested': return 'bg-orange-100 text-orange-800 border-orange-200';
-            case 'return_rejected': return 'bg-red-50 text-red-800 border-red-200';
+            case 'return_rejected': return 'bg-red-100 text-red-800 border-red-200';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };
@@ -113,8 +113,10 @@ export const Requests = () => {
             if (filterStatus !== 'all') {
                 // Group 'pending' and 'return_requested' as 'pending' for simpler UI if desired, but user asked for specific approval status
                 if (filterStatus === 'pending' && req.status !== 'pending' && req.status !== 'return_requested') return false;
-                if (filterStatus === 'approved' && req.status !== 'approved' && req.status !== 'returned') return false;
+                if (filterStatus === 'approved' && req.status !== 'approved') return false;
+                if (filterStatus === 'returned' && req.status !== 'returned') return false;
                 if (filterStatus === 'rejected' && req.status !== 'rejected') return false;
+                if (filterStatus === 'return_rejected' && req.status !== 'return_rejected') return false;
             }
 
             // Date Filter
@@ -215,7 +217,9 @@ export const Requests = () => {
                             <option value="all">All Statuses</option>
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
+                            <option value="returned">Returned</option>
                             <option value="rejected">Rejected</option>
+                            <option value="return_rejected">Return Rejected</option>
                         </select>
                     </div>
 
