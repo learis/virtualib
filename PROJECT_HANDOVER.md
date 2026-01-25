@@ -323,6 +323,26 @@ podman-compose down
 podman-compose up -d --build
 ```
 
+## Troubleshooting
+
+### "Out of Memory" Error During Build
+If you see errors like `fatal error: out of memory allocating heap arena map` or random build failures:
+Your server might be running out of RAM during the `npm run build` process. To fix this, add Swap space:
+
+```bash
+# Check current memory
+free -h
+
+# Create a 2GB swap file
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Make it permanent
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
 ### Critical Files
 - server/.dockerignore: Excludes local 'dist' and 'node_modules'. Essential for clean builds.
 - server/src/index.ts: Entry point. Initializes Cron jobs.

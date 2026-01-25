@@ -264,7 +264,7 @@ export const Loans = () => {
                                     <div className="flex items-center gap-3 text-xs text-gray-500 mt-2">
                                         <span>Borrowed: <span className="font-medium text-gray-900">{formatDate(loan.borrowed_at)}</span></span>
                                         <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                                        <span className={new Date(loan.due_at) < new Date() && loan.status === 'active' ? 'text-red-600 font-bold' : ''}>
+                                        <span className={new Date(loan.due_at) < new Date() && (loan.status === 'active' || loan.status === 'return_rejected') ? 'text-red-600 font-bold' : ''}>
                                             Due: <span className="font-medium">{formatDate(loan.due_at)}</span>
                                         </span>
                                     </div>
@@ -274,7 +274,7 @@ export const Loans = () => {
                             <div className="flex items-center justify-between w-full md:w-auto gap-4 pl-0 md:pl-4 md:border-l border-gray-100">
                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold capitalize flex items-center gap-1 border whitespace-nowrap
                                     ${getStatusStyle(loan.status)}`}>
-                                    {loan.status === 'active' && <Clock size={12} />}
+                                    {(loan.status === 'active' || loan.status === 'return_rejected') && <Clock size={12} />}
                                     {loan.status === 'return_requested' && <AlertCircle size={12} />}
                                     {loan.status === 'returned' && <CheckCircle size={12} />}
                                     {getStatusLabel(loan.status)}

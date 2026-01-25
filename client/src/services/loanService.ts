@@ -9,7 +9,7 @@ export interface BookLoan {
     borrowed_at: string;
     due_at: string;
     returned_at: string | null;
-    status: 'active' | 'return_requested' | 'returned';
+    status: 'active' | 'return_requested' | 'returned' | 'return_rejected';
     book: Book;
     user: User;
 }
