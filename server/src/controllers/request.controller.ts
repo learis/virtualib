@@ -151,8 +151,15 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
                 });
                 if (activeLoan) throw new Error('Book is currently on loan');
 
+                // Fetch settings for loan duration
+                const settings = await tx.settings.findFirst({
+                    where: { library_id: request.library_id }
+                });
+
+                const loanDuration = settings?.overdue_days || 14;
+
                 const dueDate = new Date();
-                dueDate.setDate(dueDate.getDate() + 14); // Default 14 days loan
+                dueDate.setDate(dueDate.getDate() + loanDuration);
 
                 await tx.bookLoan.create({
                     data: {
