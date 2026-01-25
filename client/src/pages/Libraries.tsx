@@ -15,13 +15,90 @@ interface Library {
 }
 
 export const Libraries = () => {
-    // ... (state remains same)
+    const [libraries, setLibraries] = useState<Library[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingLibrary, setEditingLibrary] = useState<Library | null>(null);
+    const [formData, setFormData] = useState({ name: '', description: '' });
 
-    // ... (fetch remains same)
+    const user = useAuthStore(state => state.user);
+    const isAdmin = user?.role === 'admin';
+
+    const fetchLibraries = async () => {
+        setIsLoading(true);
+        try {
+            const response = await api.get('/libraries');
+            setLibraries(response.data);
+        } catch (error) {
+            console.error('Failed to fetch libraries', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLibraries();
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            if (editingLibrary) {
+                await api.put(`/libraries/${editingLibrary.id}`, formData);
+            } else {
+                await api.post('/libraries', formData);
+            }
+            fetchLibraries();
+            handleCloseModal();
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Failed to save library');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure? This will affect all users and books in this library.')) return;
+        try {
+            await api.delete(`/libraries/${id}`);
+            setLibraries(libraries.filter(l => l.id !== id));
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Failed to delete library');
+        }
+    };
+
+    const handleEdit = (library: Library) => {
+        setEditingLibrary(library);
+        setFormData({ name: library.name, description: library.description || '' });
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingLibrary(null);
+        setFormData({ name: '', description: '' });
+    };
+
+    if (!isAdmin) {
+        return <div className="p-8 text-center text-red-600">Access Restricted</div>;
+    }
 
     return (
         <div className="max-w-[1920px] mx-auto p-8 lg:p-12">
-            {/* Header ... */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <Building className="text-blue-600" />
+                        Library Management
+                    </h1>
+                    <p className="text-gray-500 mt-1">Manage library branches</p>
+                </div>
+                <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="h-10 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                >
+                    <Plus size={18} />
+                    Add Library
+                </button>
+            </div>
 
             {isLoading ? (
                 <div className="text-center py-10">Loading libraries...</div>
