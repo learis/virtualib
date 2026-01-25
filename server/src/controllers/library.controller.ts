@@ -39,6 +39,15 @@ export const getLibrary = async (req: Request, res: Response) => {
         // For now, simple fetch.
         const library = await prisma.library.findUnique({
             where: { id },
+            include: {
+                _count: {
+                    select: {
+                        users: true,
+                        books: true,
+                        categories: true
+                    }
+                }
+            }
         });
         if (!library) return res.status(404).json({ message: 'Library not found' });
         res.json(library);
@@ -75,7 +84,17 @@ export const deleteLibrary = async (req: Request, res: Response) => {
 };
 export const getAllLibraries = async (req: Request, res: Response) => {
     try {
-        const libraries = await prisma.library.findMany();
+        const libraries = await prisma.library.findMany({
+            include: {
+                _count: {
+                    select: {
+                        users: true,
+                        books: true,
+                        categories: true
+                    }
+                }
+            }
+        });
         res.json(libraries);
     } catch (error) {
         res.status(500).json({ message: 'Failed to fetch libraries' });
