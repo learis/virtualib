@@ -116,7 +116,7 @@ model BookLoan {
   reminder_stage        Int       @default(0)
   last_reminder_sent_at DateTime?
   created_at            DateTime  @default(now())
-  updated_at            DateTime  @updatedAt
+  updated_at            DateTime  @default(now()) @updatedAt
 
   @@map("book_loans")
 }

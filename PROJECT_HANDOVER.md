@@ -318,7 +318,7 @@ podman-compose up -d --force-recreate api
 podman-compose build --no-cache web
 podman-compose up -d --force-recreate web
 
-# Full Restart
+# Full Restart (Build All)
 podman-compose down
 podman-compose up -d --build
 ```
