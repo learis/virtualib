@@ -59,6 +59,18 @@ export const Loans = () => {
         }
     };
 
+    const handleRejectReturn = async (id: string) => {
+        if (confirm('Reject this return request? The book will remain active on loan.')) {
+            try {
+                await rejectReturn(id);
+                await fetchLoans();
+            } catch (error) {
+                console.error('Failed to reject return', error);
+                alert('Failed to reject return');
+            }
+        }
+    };
+
     const handleCancelReturn = async (id: string) => {
         if (confirm('Cancel this return request?')) {
             try {
