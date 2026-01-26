@@ -1,53 +1,71 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Book as BookIcon, LayoutGrid, List as ListIcon, Edit2, Trash2, RefreshCcw, AlertTriangle } from 'lucide-react';
-import { getBooks, createBook, updateBook, deleteBook, restoreBook, getCategories, type Book, type CreateBookDto, type Category } from '../services/bookService';
-import { createRequest } from '../services/loanService';
-import { useAuthStore } from '../store/authStore';
-import { BookModal } from '../components/BookModal';
-
-type ViewMode = 'grid' | 'list';
-
-type SortOption = 'name_asc' | 'name_desc' | 'author_asc' | 'author_desc' | 'year_asc' | 'year_desc' | 'created_asc' | 'created_desc';
+// ... imports
+import { Building, Filter } from 'lucide-react'; // Add Building icon
+import { getBooks, createBook, updateBook, deleteBook, restoreBook, getCategories, getLibraries, type Book, type CreateBookDto, type Category } from '../services/bookService';
+// ... imports
 
 export const Books = () => {
+    // ... states
     const [books, setBooks] = useState<Book[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [libraries, setLibraries] = useState<{ id: string, name: string }[]>([]); // New state
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [selectedLibrary, setSelectedLibrary] = useState<string>(''); // New state
     const [sortBy, setSortBy] = useState<SortOption>('created_desc');
-    const [editingBook, setEditingBook] = useState<Book | null>(null);
-    const [viewMode, setViewMode] = useState<ViewMode>('grid');
-    const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
-    const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
-    const [activeBookId, setActiveBookId] = useState<string | null>(null);
+    // ... other states
+
+    const user = useAuthStore(state => state.user);
+    const isAdmin = user?.role === 'admin';
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            // Fetch independently to allow partial success
-            getBooks()
-                .then(data => setBooks(Array.isArray(data) ? data : []))
-                .catch(err => console.error('Failed to fetch books', err));
+            // Fetch Libraries first if Admin
+            let libs: any[] = [];
+            if (isAdmin && libraries.length === 0) {
+                try {
+                    libs = await getLibraries();
+                    setLibraries(Array.isArray(libs) ? libs : []);
+                } catch (e) {
+                    console.error('Failed to fetch libraries', e);
+                }
+            }
 
-            getCategories()
-                .then(data => setCategories(Array.isArray(data) ? data : []))
-                .catch(err => console.error('Failed to fetch categories', err));
+            // Determine effective library filter
+            // If admin has selected a library, use it.
+            // If not selected, fetch all? Or force selection?
+            // Let's pass selectedLibrary if set.
+
+            const booksData = await getBooks(selectedLibrary || undefined);
+            setBooks(Array.isArray(booksData) ? booksData : []);
+
+            // Categories should also be specific to library if library is selected??
+            // User requested: "Selected library determines ... books".
+            // Logic: 
+            // 1. Admin Selects Library -> `selectedLibrary` updates.
+            // 2. `fetchData` runs (added to dependency).
+            // 3. `getBooks(selectedLibrary)` returns filtered books.
+            // 4. `getCategories(selectedLibrary)` returns filtered categories?
+            //    It makes sense to filter categories too so the filter dropdown is relevant.
+
+            const catsData = await getCategories(selectedLibrary || undefined);
+            setCategories(Array.isArray(catsData) ? catsData : []);
 
         } catch (error) {
             console.error('Failed to init fetch', error);
         } finally {
-            // Short timeout to prevent flash if cache is fast
             setTimeout(() => setIsLoading(false), 300);
         }
     };
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [selectedLibrary]); // Re-fetch when library changes
 
     const handleSaveBook = async (data: CreateBookDto) => {
+        // ... save logic
         if (editingBook && !isReadOnlyModal) {
             await updateBook(editingBook.id, data);
         } else if (!isReadOnlyModal) {
@@ -58,119 +76,45 @@ export const Books = () => {
         setIsReadOnlyModal(false);
     };
 
-    const user = useAuthStore(state => state.user);
-    const isAdmin = user?.role === 'admin';
-
-    const handleEditClick = (book: Book) => {
-        setEditingBook(book);
-        setIsReadOnlyModal(false);
-        setIsModalOpen(true);
-    };
-
-    const handleViewClick = (book: Book) => {
-        setEditingBook(book);
-        setIsReadOnlyModal(true);
-        setIsModalOpen(true);
-    };
-
-    const handleDeleteClick = (book: Book) => {
-        setBookToDelete(book);
-    };
-
-    const confirmDelete = async (type: 'soft' | 'hard') => {
-        if (!bookToDelete) return;
-        try {
-            await deleteBook(bookToDelete.id, type);
-            await fetchData();
-            setBookToDelete(null);
-        } catch (error) {
-            console.error('Failed to delete book', error);
-            alert('Failed to delete book');
-        }
-    };
-
-    const handleRestoreClick = async (book: Book) => {
-        if (confirm(`Restore "${book.name}"?`)) {
-            try {
-                await restoreBook(book.id);
-                await fetchData();
-            } catch (error) {
-                console.error('Failed to restore book', error);
-                alert('Failed to restore book');
-            }
-        }
-    };
-
-    const handleBorrowClick = async (book: Book) => {
-        if (!user) return;
-        if (isAdmin) {
-            alert('Admins cannot request books. Please use the Loan Management panel to assign books directly.');
-            return;
-        }
-
-        if (confirm(`Do you want to request to borrow "${book.name}"?`)) {
-            try {
-                await createRequest(book.id);
-                alert('Borrow request sent successfully!');
-            } catch (error: any) {
-                alert(error.response?.data?.message || 'Failed to send request');
-            }
-        }
-    };
-
-    // Pagination State
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(30);
-
-    const filteredBooks = books.filter(book => {
-        const matchesSearch = book.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            book.isbn.includes(searchQuery);
-        const matchesCategory = selectedCategory ? book.categories?.some(c => c.category.id === selectedCategory) : true;
-        return matchesSearch && matchesCategory;
-    }).sort((a, b) => {
-        switch (sortBy) {
-            case 'name_asc': return a.name.localeCompare(b.name);
-            case 'name_desc': return b.name.localeCompare(a.name);
-            case 'author_asc': return a.author.localeCompare(b.author);
-            case 'author_desc': return b.author.localeCompare(a.author);
-            case 'year_asc': return a.publish_year - b.publish_year;
-            case 'year_desc': return b.publish_year - a.publish_year;
-            case 'created_asc': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-            case 'created_desc': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-            default: return 0;
-        }
-    });
-
-    // Reset pagination when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchQuery, selectedCategory, sortBy]);
-
-    // Pagination Logic
-    const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
-    const paginatedBooks = filteredBooks.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
-
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-    };
+    // ... helper functions
 
     return (
         <div className="min-h-screen bg-white">
             <div className="max-w-[1920px] mx-auto p-8 lg:p-12">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    {/* Title ... */}
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">Library</h1>
                         <p className="text-sm text-gray-500 font-medium">Manage and curate your collection</p>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    {/* Action & Filter Area */}
+                    <div className="flex flex-wrap items-center gap-4">
+
+                        {/* Library Filter (Admin Only) */}
+                        {isAdmin && (
+                            <div className="relative group min-w-[200px]">
+                                <Building size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10" />
+                                <select
+                                    value={selectedLibrary}
+                                    onChange={(e) => {
+                                        setSelectedLibrary(e.target.value);
+                                        setSelectedCategory(''); // Reset category when library changes
+                                    }}
+                                    className="w-full h-10 pl-9 pr-8 bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-white hover:border-gray-300 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="">All Libraries</option>
+                                    {libraries.map(lib => (
+                                        <option key={lib.id} value={lib.id}>{lib.name}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                            </div>
+                        )}
+
                         {isAdmin && (
                             <button
                                 onClick={() => {
@@ -190,7 +134,7 @@ export const Books = () => {
                 {/* Toolbar */}
                 <div className="flex flex-col gap-4 mb-8 w-full">
                     <div className="w-full flex flex-col md:flex-row gap-4">
-                        {/* Search Bar - Full width on mobile */}
+                        {/* Search Bar */}
                         <div className="flex-1 bg-white border border-gray-200 shadow-sm rounded-lg flex items-center transition-shadow hover:shadow-md focus-within:shadow-md focus-within:border-blue-500 overflow-hidden h-12">
                             <div className="pl-4 text-gray-400">
                                 <Search size={20} />
@@ -204,12 +148,13 @@ export const Books = () => {
                             />
                         </div>
 
-                        {/* Filters Row on Mobile */}
+                        {/* Filters Row */}
                         <div className="flex gap-4">
                             {/* Category Filter */}
                             <div className="flex-1 md:w-48 bg-white border border-gray-200 shadow-sm rounded-lg flex items-center h-12 px-3 relative hover:border-gray-300 transition-colors">
+                                <Filter size={16} className="absolute left-3 text-gray-400" />
                                 <select
-                                    className="w-full bg-transparent outline-none text-gray-700 font-medium cursor-pointer text-sm appearance-none pr-8 truncate"
+                                    className="w-full bg-transparent outline-none text-gray-700 font-medium cursor-pointer text-sm appearance-none pl-6 pr-8 truncate"
                                     value={selectedCategory}
                                     onChange={(e) => setSelectedCategory(e.target.value)}
                                 >

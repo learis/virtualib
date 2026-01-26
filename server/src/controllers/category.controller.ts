@@ -9,7 +9,15 @@ const createCategorySchema = z.object({
 
 export const getCategories = async (req: Request, res: Response) => {
     try {
+        const { library_id } = req.query;
+        const where: any = {};
+
+        if (library_id) {
+            where.library_id = library_id as string;
+        }
+
         const categories = await prisma.category.findMany({
+            where,
             include: {
                 library: true,
                 _count: {

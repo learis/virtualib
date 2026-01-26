@@ -29,6 +29,7 @@ export interface CreateBookDto {
     publisher: string;
     cover_image_path?: string;
     category_ids: string[];
+    library_id: string; // Required for Admin/Librarian to specify target library
     summary_tr?: string;
     summary_en?: string;
 }
@@ -43,13 +44,21 @@ export interface Category {
     name: string;
 }
 
-export const getCategories = async () => {
-    const response = await api.get<Category[]>('/categories');
+export const getCategories = async (libraryId?: string) => {
+    const params = libraryId ? { library_id: libraryId } : {};
+    const response = await api.get<Category[]>('/categories', { params });
     return response.data;
 };
 
-export const getBooks = async () => {
-    const response = await api.get<Book[]>('/books');
+// Helper to fetch libraries for the dropdown (Admin/Librarian)
+export const getLibraries = async () => {
+    const response = await api.get<{ id: string; name: string }[]>('/libraries');
+    return response.data;
+};
+
+export const getBooks = async (libraryId?: string) => {
+    const params = libraryId ? { library_id: libraryId } : {};
+    const response = await api.get<Book[]>('/books', { params });
     return response.data;
 };
 

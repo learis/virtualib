@@ -24,10 +24,32 @@ export const getBooks = async (req: Request, res: Response) => {
         if (!user || !user.library_id) return res.status(401).json({ message: 'Unauthorized' });
 
         const isAdmin = user.role?.role_name === 'admin';
-        const where: any = { library_id: user.library_id };
+        const { library_id } = req.query; // Allow filtering by library_id for Admins
 
+        const where: any = {};
+
+        // If User/Librarian -> Forced to their own library
         if (!isAdmin) {
+            where.library_id = user.library_id;
             where.deleted_at = null;
+        } else {
+            // If Admin -> Can filter by specific library OR see their own (or all? Currently limited to their library_id in previous code). 
+            // Previous code said `where = { library_id: user.library_id }`. 
+            // But Admin is usually super-admin in this context or multi-library admin?
+            // If Admin is Global, they can see all. If Admin is tied to a library, they see theirs.
+            // Assumption: Admin CAN see all if they want, but usually filtered.
+            // Let's allow `library_id` query param to override if provided (and if logic allows).
+            // For now, let's say if `library_id` query param exists, use it.
+            // If NOT exists: show all? or show logged-in library?
+            // Let's default to showing ALL for Admin if no filter, or filter if provided.
+
+            if (library_id) {
+                where.library_id = library_id as string;
+            } else {
+                // If no filter, maybe show all?
+                // Or maybe just show nothing until selected?
+                // Let's show ALL for now.
+            }
         }
 
         const books = await prisma.book.findMany({

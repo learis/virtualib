@@ -10,14 +10,8 @@ interface BookModalProps {
     isReadOnly?: boolean;
 }
 
-// ... existing imports
-import { Image as ImageIcon } from 'lucide-react';
-// ... existing interface
-
-// ... existing interface
-
 export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly = false }: BookModalProps) => {
-    // ... state declarations as before
+    // ... state declarations
     const [formData, setFormData] = useState<CreateBookDto>({
         name: '',
         author: '',
@@ -26,20 +20,51 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
         publisher: '',
         cover_image_path: '',
         category_ids: [],
+        library_id: '',
         summary_tr: '',
         summary_en: ''
     });
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<any[]>([]);
+    const [libraries, setLibraries] = useState<any[]>([]);
 
     useEffect(() => {
+        const fetchInitialData = async () => {
+            const { getLibraries } = await import('../services/bookService');
+            try {
+                const libs = await getLibraries();
+                setLibraries(Array.isArray(libs) ? libs : []);
+
+                // If only one library (e.g. standard User or Librarian with 1 library) and it's a new book
+                if (libs.length === 1 && !initialData) {
+                    setFormData(prev => ({ ...prev, library_id: libs[0].id }));
+                }
+            } catch (err) {
+                console.error('Failed to fetch libraries', err);
+            }
+        };
+        if (isOpen) {
+            fetchInitialData();
+        }
+    }, [initialData, isOpen]);
+
+    // Fetch categories when library_id changes
+    useEffect(() => {
         const fetchCategories = async () => {
+            if (!formData.library_id) {
+                setCategories([]);
+                return;
+            }
             const { getCategories } = await import('../services/bookService');
-            const data = await getCategories();
-            setCategories(Array.isArray(data) ? data : []);
+            try {
+                const data = await getCategories(formData.library_id);
+                setCategories(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error('Failed to categories', err);
+            }
         };
         fetchCategories();
-    }, []);
+    }, [formData.library_id]);
 
     useEffect(() => {
         if (initialData) {
@@ -50,12 +75,17 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                 publish_year: initialData.publish_year,
                 publisher: initialData.publisher,
                 cover_image_path: initialData.cover_image_path || '',
+                // Ideally initialData has library_id.
+                // If missing in type, we assume it's attached or backend handles it (but for display we need it).
+                // Assuming book.library_id exists on the object.
+                library_id: (initialData as any).library_id || '',
                 category_ids: initialData.categories ? initialData.categories.map(c => c.category.id) : [],
                 summary_tr: initialData.summary_tr || '',
                 summary_en: initialData.summary_en || ''
             });
         } else {
-            setFormData({
+            // New Book
+            setFormData(prev => ({
                 name: '',
                 author: '',
                 isbn: '',
@@ -63,14 +93,12 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                 publisher: '',
                 cover_image_path: '',
                 category_ids: [],
+                library_id: prev.library_id || '', // Keep library_id if auto-selected
                 summary_tr: '',
                 summary_en: ''
-            });
+            }));
         }
     }, [initialData, isOpen]);
-
-    // URL-only mode requested by user
-
 
     if (!isOpen) return null;
 
@@ -91,22 +119,11 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
         }
     };
 
-    // Determine availability (This logic requires book loans data which might not be in initialData fully. 
-    // Assuming we rely on a prop or check logic. For now, we'll placeholder if not explicitly passed.)
-    // But the user requested "On Shelf" vs "Borrowed". 
-    // Since `initialData` comes from `getBooks` which doesn't join `loans` by default in `Books.tsx` (it does simple list),
-    // we might need to rely on the parent or fetch details. 
-    // Let's assume for this step we display what we have or default to "On Shelf" if no active loan data.
-    // Actually, we should probably fetch the book details including status if we want to be accurate. 
-    // But for "Edit" modal, `initialData` is usually just the row data.
-
-    // Let's add a visual status.
     const isBorrowed = initialData?.loans && initialData.loans.length > 0;
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-
                 {/* Header Image Area */}
                 <div className="relative h-48 sm:h-64 bg-gray-100 shrink-0 group">
                     {formData.cover_image_path ? (
@@ -120,7 +137,6 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                     e.currentTarget.nextElementSibling?.classList.remove('hidden');
                                 }}
                             />
-                            {/* Fallback for broken image */}
                             <div className="hidden absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-500 flex-col gap-2">
                                 <ImageIcon size={48} className="opacity-50" />
                                 <span className="text-xs font-medium">Image not found</span>
@@ -138,7 +154,6 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                         </button>
                     </div>
 
-                    {/* Status Badge */}
                     <div className="absolute bottom-4 left-4">
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold shadow-sm backdrop-blur-md
                                 ${isBorrowed
@@ -168,7 +183,32 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <form onSubmit={handleSubmit} className="p-6 space-y-8">
 
-                        {/* Title & Author Section */}
+                        {/* Library Selector (Critical for Multi-Tenancy) */}
+                        {!isReadOnly && (
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Library Location</label>
+                                <div className="relative">
+                                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <select
+                                        required
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700"
+                                        value={formData.library_id}
+                                        onChange={(e) => {
+                                            setFormData({ ...formData, library_id: e.target.value, category_ids: [] });
+                                        }}
+                                        disabled={!!initialData}
+                                    >
+                                        <option value="">Select a Library</option>
+                                        {libraries.map(lib => (
+                                            <option key={lib.id} value={lib.id}>{lib.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {initialData && <p className="text-xs text-gray-400 mt-1 ml-1">Library cannot be changed after creation.</p>}
+                            </div>
+                        )}
+
+                        {/* Title & Author Section ... Same as before */}
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Book Title</label>
@@ -196,8 +236,10 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                             </div>
                         </div>
 
-                        {/* Info Grid */}
+                        {/* Info Grid ... Same as before */}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 p-4 bg-gray-50/50 rounded-xl border border-gray-100">
+                            {/* ... Inputs ... */}
+
                             <div>
                                 <label className="block text-xs font-semibold text-gray-400 mb-1">ISBN</label>
                                 <input
@@ -213,16 +255,12 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                 <label className="block text-xs font-semibold text-gray-400 mb-1">Published</label>
                                 <input
                                     type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
                                     required
                                     className="w-full bg-transparent text-sm font-medium focus:outline-none"
                                     value={formData.publish_year}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        if (val === '' || /^\d+$/.test(val)) {
-                                            setFormData({ ...formData, publish_year: val === '' ? 0 : parseInt(val) });
-                                        }
+                                        if (val === '' || /^\d+$/.test(val)) setFormData({ ...formData, publish_year: Number(val) || 0 });
                                     }}
                                     disabled={isReadOnly}
                                 />
@@ -242,38 +280,51 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
 
                         {/* Categories */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Categories</label>
-                            <div className="flex flex-wrap gap-2">
-                                {(isReadOnly
-                                    ? categories.filter(c => formData.category_ids.includes(c.id))
-                                    : categories
-                                ).map(category => (
-                                    <label key={category.id} className={`
-                                            cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all select-none
-                                            ${formData.category_ids.includes(category.id)
-                                            ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500 ring-offset-1'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }
-                                        `}>
-                                        <input
-                                            type="checkbox"
-                                            className="hidden"
-                                            checked={formData.category_ids.includes(category.id)}
-                                            disabled={isReadOnly}
-                                            onChange={(e) => {
-                                                const id = category.id;
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    category_ids: e.target.checked
-                                                        ? [...prev.category_ids, id]
-                                                        : prev.category_ids.filter(cid => cid !== id)
-                                                }));
-                                            }}
-                                        />
-                                        {category.name}
-                                    </label>
-                                ))}
-                            </div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                                Categories {formData.library_id ? '' : '(Select Library First)'}
+                            </label>
+
+                            {formData.library_id ? (
+                                categories.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {(isReadOnly
+                                            ? categories.filter(c => formData.category_ids.includes(c.id))
+                                            : categories
+                                        ).map(category => (
+                                            <label key={category.id} className={`
+                                                    cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all select-none
+                                                    ${formData.category_ids.includes(category.id)
+                                                    ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500 ring-offset-1'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }
+                                                `}>
+                                                <input
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={formData.category_ids.includes(category.id)}
+                                                    disabled={isReadOnly}
+                                                    onChange={(e) => {
+                                                        const id = category.id;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            category_ids: e.target.checked
+                                                                ? [...prev.category_ids, id]
+                                                                : prev.category_ids.filter(cid => cid !== id)
+                                                        }));
+                                                    }}
+                                                />
+                                                {category.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-gray-400 italic">No categories found in this library.</div>
+                                )
+                            ) : (
+                                <div className="p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center text-sm text-gray-400">
+                                    Please select a library to view available categories.
+                                </div>
+                            )}
                         </div>
 
                         {/* Summaries */}
@@ -293,12 +344,7 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                                 const { generateBookSummary } = await import('../services/bookService');
                                                 const summary = await generateBookSummary(formData.name, formData.author);
                                                 if (summary && 'error' in summary) throw new Error((summary as any).error || 'Failed');
-
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    summary_tr: summary.summary_tr,
-                                                    summary_en: summary.summary_en
-                                                }));
+                                                setFormData(prev => ({ ...prev, summary_tr: summary.summary_tr, summary_en: summary.summary_en }));
                                             } catch (error: any) {
                                                 console.error(error);
                                                 alert(error.response?.data?.message || 'Failed to generate summary');
@@ -308,11 +354,10 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                         }}
                                         className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-full font-bold transition-all shadow-md shadow-indigo-200 flex items-center gap-1.5 hover:scale-105 active:scale-95"
                                     >
-                                        ✨ Generate Book Summary With AI
+                                        ✨ Generate Summary AI
                                     </button>
                                 )}
                             </div>
-
                             <div className="space-y-6">
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
@@ -327,7 +372,6 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                         disabled={isReadOnly}
                                     />
                                 </div>
-
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-xl">🇬🇧</span>
@@ -343,7 +387,6 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                 </div>
                             </div>
                         </div>
-
                     </form>
                 </div>
 
@@ -352,13 +395,13 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-6 py-2.5 rounded-lg border border-gray-200 font-medium hover:bg-white hover:border-gray-300 transition-all"
+                            className="px-6 py-2.5 rounded-lg border border-gray-200 font-medium hover:bg-white hover:border-gray-300 transition-all text-gray-700"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={isLoading}
+                            disabled={isLoading || !formData.library_id}
                             className="px-6 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isLoading ? 'Saving...' : 'Save Changes'}
