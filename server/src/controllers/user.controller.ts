@@ -57,10 +57,28 @@ export const createUser = async (req: Request, res: Response) => {
             }
         }
 
-        // Check if email unique
+        // Check if email unique (including soft-deleted)
         const existing = await prisma.user.findUnique({ where: { email: data.email } });
+
         if (existing) {
-            return res.status(400).json({ message: 'Email already exists' });
+            if (existing.deleted_at) {
+                // Reactivate soft-deleted user
+                const { password, ...userData } = data;
+                const password_hash = await hashPassword(password);
+
+                const reactivatedUser = await prisma.user.update({
+                    where: { id: existing.id },
+                    data: {
+                        ...userData,
+                        password_hash,
+                        deleted_at: null,
+                        is_active: true
+                    }
+                });
+                return res.status(201).json(reactivatedUser);
+            } else {
+                return res.status(400).json({ message: 'Email already exists' });
+            }
         }
 
         const { password, ...userData } = data;

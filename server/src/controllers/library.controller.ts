@@ -59,9 +59,12 @@ export const getLibrary = async (req: Request, res: Response) => {
 
         if (!library) return res.status(404).json({ message: 'Library not found' });
 
-        // Ownership check
-        if (user.role.role_name === 'librarian' && library.owner_id !== user.id) {
-            return res.status(403).json({ message: 'Forbidden: You do not own this library' });
+        // Ownership / Membership check
+        const isOwner = library.owner_id === user.id;
+        const isMember = user.role.role_name === 'librarian' && user.library_id === library.id;
+
+        if (user.role.role_name === 'librarian' && !isOwner && !isMember) {
+            return res.status(403).json({ message: 'Forbidden: You do not have access to this library' });
         }
 
         res.json(library);
@@ -76,11 +79,14 @@ export const updateLibrary = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const data = createLibrarySchema.partial().parse(req.body);
 
-        // Ownership Check
+        // Ownership / Membership Check
         const existing = await prisma.library.findUnique({ where: { id } });
         if (!existing) return res.status(404).json({ message: 'Library not found' });
 
-        if (user.role.role_name === 'librarian' && existing.owner_id !== user.id) {
+        const isOwner = existing.owner_id === user.id;
+        const isMember = user.role.role_name === 'librarian' && user.library_id === existing.id;
+
+        if (user.role.role_name === 'librarian' && !isOwner && !isMember) {
             return res.status(403).json({ message: 'Forbidden' });
         }
 
@@ -99,12 +105,14 @@ export const deleteLibrary = async (req: Request, res: Response) => {
         const { id } = req.params as { id: string };
         const user = (req as any).user;
 
-        // Ownership Check
+        // Ownership Check - Only Owner can delete? Or Member too?
+        // Let's restricting DELETE to Owner only for safety, or Admin.
+        // If Librarian is just a member, maybe they shouldn't delete the library.
         const existing = await prisma.library.findUnique({ where: { id } });
         if (!existing) return res.status(404).json({ message: 'Library not found' });
 
         if (user.role.role_name === 'librarian' && existing.owner_id !== user.id) {
-            return res.status(403).json({ message: 'Forbidden' });
+            return res.status(403).json({ message: 'Forbidden: Only the owner can delete the library' });
         }
 
         await prisma.library.delete({
@@ -121,9 +129,14 @@ export const getAllLibraries = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const where: any = {};
 
-        // Librarian Filter
+        // Librarian Filter: Owner OR Member
         if (user.role.role_name === 'librarian') {
-            where.owner_id = user.id;
+            where.OR = [
+                { owner_id: user.id },
+                { id: user.library_id }
+            ];
+            // Prune nulls from OR if any (though id/owner_id are strings)
+            // If user.library_id is null, it might match nothing, which is fine.
         }
 
         const libraries = await prisma.library.findMany({
@@ -140,6 +153,7 @@ export const getAllLibraries = async (req: Request, res: Response) => {
         });
         res.json(libraries);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Failed to fetch libraries' });
     }
 };
