@@ -19,7 +19,12 @@ const PrivateRoute = ({ children }: { children: React.ReactElement }) => {
 
 const AdminRoute = ({ children }: { children: React.ReactElement }) => {
   const user = useAuthStore((state) => state.user);
-  return user?.role === 'admin' ? children : <Navigate to="/books" replace />;
+  return user?.role === 'admin' ? children : <Navigate to="/dashboard" replace />;
+};
+
+const ManagerRoute = ({ children }: { children: React.ReactElement }) => {
+  const user = useAuthStore((state) => state.user);
+  return (user?.role === 'admin' || user?.role === 'librarian') ? children : <Navigate to="/books" replace />;
 };
 
 function App() {
@@ -29,15 +34,15 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
+          <Route path="dashboard" element={<ManagerRoute><Dashboard /></ManagerRoute>} />
           <Route path="books" element={<Books />} />
-          <Route path="libraries" element={<AdminRoute><Libraries /></AdminRoute>} />
+          <Route path="libraries" element={<ManagerRoute><Libraries /></ManagerRoute>} />
           <Route path="categories" element={<Categories />} />
-          <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
+          <Route path="users" element={<ManagerRoute><Users /></ManagerRoute>} />
           <Route path="loans" element={<Loans />} />
           <Route path="requests" element={<Requests />} />
           <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
-          <Route path="" element={<Navigate to={useAuthStore.getState().user?.role === 'admin' ? "/dashboard" : "/books"} replace />} />
+          <Route path="" element={<Navigate to={useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'librarian' ? "/dashboard" : "/books"} replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

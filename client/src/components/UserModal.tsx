@@ -30,8 +30,23 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                     api.get('/roles'),
                     api.get('/libraries')
                 ]);
-                setRoles(rolesRes.data);
-                setLibraries(libsRes.data);
+
+                // Filter Roles for Librarian
+                // Assuming backend doesn't filter roles, we filter here for UI logic
+                // But generally backend should probably filter too or we trust UI for UX.
+                // Current user from store?
+                const userString = localStorage.getItem('user');
+                const currentUser = userString ? JSON.parse(userString) : null;
+                const isLibrarian = currentUser?.role === 'librarian';
+
+                if (isLibrarian) {
+                    setRoles(rolesRes.data.filter((r: any) => r.role_name === 'user'));
+                    // Libraries are already filtered by backend for Librarian (in updated library.controller)
+                    setLibraries(libsRes.data);
+                } else {
+                    setRoles(rolesRes.data);
+                    setLibraries(libsRes.data);
+                }
             } catch (error) {
                 console.error('Failed to fetch options', error);
             }

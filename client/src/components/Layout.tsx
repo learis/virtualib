@@ -9,13 +9,14 @@ export const Layout = () => {
     const { logout, user } = useAuthStore();
     const location = useLocation();
     const isAdmin = user?.role === 'admin';
+    const isLibrarian = user?.role === 'librarian';
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const navItems = [
-        ...(isAdmin ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }] : []),
+        ...(isAdmin || isLibrarian ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }] : []),
         { icon: Book, label: 'Books', path: '/books' },
         { icon: FolderTree, label: 'Categories', path: '/categories' },
-        ...(isAdmin ? [
+        ...(isAdmin || isLibrarian ? [
             { icon: Building, label: 'Libraries', path: '/libraries' },
             { icon: Users, label: 'Users', path: '/users' }
         ] : []),

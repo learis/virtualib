@@ -15,7 +15,10 @@ model Library {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  users           User[]
+  owner_id    String?
+  owner       User?    @relation("LibraryOwner", fields: [owner_id], references: [id])
+
+  users           User[]    @relation("LibraryUsers")
   books           Book[]
   categories      Category[]
   book_loans      BookLoan[]
@@ -35,8 +38,10 @@ model Role {
 
 model User {
   id            String    @id @default(uuid())
-  library_id    String
-  library       Library   @relation(fields: [library_id], references: [id], onDelete: Cascade)
+  library_id    String?
+  library       Library?  @relation("LibraryUsers", fields: [library_id], references: [id], onDelete: Cascade)
+  owned_libraries Library[] @relation("LibraryOwner")
+  
   name          String
   surname       String
   email         String    @unique

@@ -51,6 +51,29 @@ const seed = async () => {
             },
         });
 
+        // Librarian Role
+        const librarianRole = await prisma.role.upsert({
+            where: { role_name: 'librarian' },
+            update: {},
+            create: { role_name: 'librarian' },
+        });
+
+        // Librarian User
+        const librarianPassword = await hashPassword('librarian123');
+        await prisma.user.upsert({
+            where: { email: 'librarian@demo.com' },
+            update: {},
+            create: {
+                name: 'Jane',
+                surname: 'Librarian',
+                email: 'librarian@demo.com',
+                phone: '5551234567',
+                role_id: librarianRole.id,
+                library_id: null, // Librarian owns libraries, doesn't belong to one initially
+                password_hash: librarianPassword,
+            },
+        });
+
         // Sample Categories
         const fiction = await prisma.category.create({
             data: { name: 'Fiction', library_id: library.id },

@@ -7,7 +7,7 @@ export interface User {
     surname?: string;
     email: string;
     role: string;
-    library_id: string;
+    library_id: string | null;
     library_name: string;
 }
 

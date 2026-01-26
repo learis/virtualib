@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { hashPassword } from '../utils/auth';
 import { z } from 'zod';
+import { validateLibraryOwnership } from '../utils/validation';
 
 const createUserSchema = z.object({
     name: z.string().min(1),
@@ -15,8 +16,18 @@ const createUserSchema = z.object({
 
 export const getUsers = async (req: Request, res: Response) => {
     try {
+        const user = (req as any).user;
+        const role = user.role.role_name;
+
+        const where: any = { deleted_at: null };
+
+        // Librarian Filter
+        if (role === 'librarian') {
+            where.library = { owner_id: user.id };
+        }
+
         const users = await prisma.user.findMany({
-            where: { deleted_at: null }, // Soft delete filter
+            where,
             include: { role: true, library: true },
         });
         res.json(users);
@@ -27,7 +38,24 @@ export const getUsers = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
     try {
+        const currentUser = (req as any).user;
+        const currentRole = currentUser.role.role_name;
+
         const data = createUserSchema.parse(req.body);
+
+        // Librarian Restrictions
+        if (currentRole === 'librarian') {
+            const targetLibraryOwned = await validateLibraryOwnership(currentUser.id, data.library_id);
+            if (!targetLibraryOwned) {
+                return res.status(403).json({ message: 'Forbidden: You do not own this library' });
+            }
+
+            // Check Role (Must be 'user')
+            const targetRole = await prisma.role.findUnique({ where: { id: data.role_id } });
+            if (targetRole?.role_name !== 'user') {
+                return res.status(403).json({ message: 'Forbidden: Librarians can only create Users' });
+            }
+        }
 
         // Check if email unique
         const existing = await prisma.user.findUnique({ where: { email: data.email } });
@@ -56,11 +84,21 @@ export const createUser = async (req: Request, res: Response) => {
 export const getUserById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params as { id: string };
+        const currentUser = (req as any).user;
+        const currentRole = currentUser.role.role_name;
+
         const user = await prisma.user.findUnique({
             where: { id },
             include: { role: true, library: true },
         });
         if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Librarian Scope Check
+        if (currentRole === 'librarian') {
+            const isOwned = user.library?.owner_id === currentUser.id;
+            if (!isOwned) return res.status(403).json({ message: 'Forbidden' });
+        }
+
         res.json(user);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching user' });
@@ -72,7 +110,20 @@ const updateUserSchema = createUserSchema.partial();
 export const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params as { id: string };
+        const currentUser = (req as any).user;
+        const currentRole = currentUser.role.role_name;
+
         const data = updateUserSchema.parse(req.body);
+
+        // Fetch User to check ownership
+        const targetUser = await prisma.user.findUnique({ where: { id }, include: { library: true } });
+        if (!targetUser) return res.status(404).json({ message: 'User not found' });
+
+        // Librarian Scope Check
+        if (currentRole === 'librarian') {
+            const isOwned = targetUser.library?.owner_id === currentUser.id;
+            if (!isOwned) return res.status(403).json({ message: 'Forbidden' });
+        }
 
         let updateData: any = { ...data };
         if (data.password) {
@@ -93,6 +144,19 @@ export const updateUser = async (req: Request, res: Response) => {
 export const deleteUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params as { id: string };
+        const currentUser = (req as any).user;
+        const currentRole = currentUser.role.role_name;
+
+        // Fetch User to check ownership
+        const targetUser = await prisma.user.findUnique({ where: { id }, include: { library: true } });
+        if (!targetUser) return res.status(404).json({ message: 'User not found' });
+
+        // Librarian Scope Check
+        if (currentRole === 'librarian') {
+            const isOwned = targetUser.library?.owner_id === currentUser.id;
+            if (!isOwned) return res.status(403).json({ message: 'Forbidden' });
+        }
+
         // Soft delete
         await prisma.user.update({
             where: { id },
