@@ -12,7 +12,7 @@ export const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+        ...(isAdmin ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }] : []),
         { icon: Book, label: 'Books', path: '/books' },
         { icon: FolderTree, label: 'Categories', path: '/categories' },
         ...(isAdmin ? [

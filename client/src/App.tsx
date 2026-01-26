@@ -24,7 +24,9 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="dashboard" element={
+            useAuthStore.getState().user?.role === 'admin' ? <Dashboard /> : <Navigate to="/books" replace />
+          } />
           <Route path="books" element={<Books />} />
           <Route path="libraries" element={<Libraries />} /> {/* Added route for Libraries */}
           <Route path="categories" element={<Categories />} />
@@ -32,7 +34,7 @@ function App() {
           <Route path="loans" element={<Loans />} />
           <Route path="requests" element={<Requests />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="" element={<Navigate to="/dashboard" replace />} />
+          <Route path="" element={<Navigate to={useAuthStore.getState().user?.role === 'admin' ? "/dashboard" : "/books"} replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

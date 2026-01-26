@@ -3,6 +3,19 @@
 **Last Updated:** January 2026
 **Purpose:** Handover document for future development cycles. This file contains the architecture, database schema, and key business logic details.
 
+## Project Overview
+
+**Virtualib** is a modern, web-based Library Management System (LMS) designed to streamline the borrowing process for corporate or private libraries. It serves two main user roles:
+
+- **Users:** Can browse the catalog, view book details (AI-summarized), request to borrow books, and track their active loans and deadlines.
+- **Admins:** Manage the entire lifecycle—adding books/categories, approving/rejecting borrow and return requests, managing users, and configuring system settings (email reminders, loan durations).
+
+**Key Features:**
+- **AI Integration (OpenAI):** Automatically generates summaries for books in Library.
+- **Automated Reminders:** Cron jobs send email notifications for overdue books.
+- **Role-Based Access Control:** Secure JWT-based authentication for Admin vs. User scopes.
+- **Request Workflow:** A complete approval flow for both borrowing and returning books.
+
 ## System Architecture
 
 The project follows a Microservices Architecture, containerized via Docker (Podman) and orchestrated with podman-compose.
@@ -263,6 +276,24 @@ model Settings {
 6. Users (/users): User management.
 7. Settings (/settings): Loan rules, Email config, Template editor.
 8. Login (/login): JWT Authentication.
+
+### Key Workflows
+
+**Return Rejection Flow:**
+1. User requests return -> Loan Status: `return_requested`.
+2. Admin rejects return -> Loan Status: `return_rejected`.
+   - **Important:** The loan remains "Active" in terms of possession (user has the book).
+   - Logic: `getLoans` includes `returned_at: null`. Status `return_rejected` is treated as a sub-state of active loans.
+3. User sees "Return Rejected" warning and clicks "Try Return Again".
+4. Status reverts to `return_requested`.
+
+**Request Status Codes:**
+- `pending`: Borrow request waiting for approval.
+- `approved`: Borrow approved (Loan created).
+- `rejected`: Borrow rejected (End state).
+- `return_requested`: User wants to return.
+- `returned`: Book returned (End state).
+- `return_rejected`: Return rejected by admin (User must retry).
 
 ---
 

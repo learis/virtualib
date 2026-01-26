@@ -15,7 +15,12 @@ export const Login = () => {
         setError('');
         try {
             await login({ email, password });
-            navigate('/dashboard'); // Will redirect based on role later if needed
+            const user = useAuthStore.getState().user;
+            if (user?.role === 'admin') {
+                navigate('/dashboard');
+            } else {
+                navigate('/books');
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Login failed');
         }
