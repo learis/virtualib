@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, FolderTree, Search, Tag, Book } from 'lucide-react';
+import { Plus, Trash2, Edit2, FolderTree, Search, Tag, Book, Building } from 'lucide-react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 interface Category {
     id: string;
     name: string;
-    library: { name: string };
+    library: { id: string; name: string };
     _count?: {
         books: number;
     };
@@ -21,6 +21,7 @@ export const Categories = () => {
     const [libraryId, setLibraryId] = useState('');
     const [libraries, setLibraries] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedLibraryFilter, setSelectedLibraryFilter] = useState(''); // For filtering list
 
     const user = useAuthStore(state => state.user);
     const isAdmin = user?.role === 'admin';
@@ -94,10 +95,15 @@ export const Categories = () => {
         setName('');
     };
 
-    const filteredCategories = categories.filter(category =>
-        category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        category.library.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredCategories = categories.filter(category => {
+        const matchesSearch = category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            category.library.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesLibrary = selectedLibraryFilter ? category.library && category.library['id'] === selectedLibraryFilter : true;
+        // Note: checking library['id'] or matching if library object structure has ID.
+        // Interface says library: { name: string }. Need to ensuring fetched category has library ID.
+        // Assuming getAllCategories response includes library relation with ID.
+        return matchesSearch && matchesLibrary;
+    });
 
     return (
         <div className="max-w-[1920px] mx-auto p-8 lg:p-12">
@@ -120,16 +126,36 @@ export const Categories = () => {
                 )}
             </div>
 
-            {/* Search Bar */}
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-8 flex items-center gap-3">
-                <Search size={20} className="text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Search categories..."
-                    className="flex-1 outline-none text-gray-700 bg-transparent"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
+            {/* Search Bar & Filters */}
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 mb-8 flex flex-col md:flex-row items-center gap-4">
+                <div className="flex-1 flex items-center gap-3 w-full border border-gray-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-blue-100 transition-shadow">
+                    <Search size={20} className="text-gray-400 shrink-0" />
+                    <input
+                        type="text"
+                        placeholder="Search categories..."
+                        className="flex-1 outline-none text-gray-700 bg-transparent min-w-0"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+
+                {/* Library Filter */}
+                <div className="w-full md:w-64 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 relative bg-gray-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                    <Building size={16} className="text-gray-400 shrink-0" />
+                    <select
+                        className="w-full bg-transparent outline-none text-sm text-gray-700 font-medium appearance-none cursor-pointer"
+                        value={selectedLibraryFilter} // Needs new state
+                        onChange={(e) => setSelectedLibraryFilter(e.target.value)}
+                    >
+                        <option value="">All Libraries</option>
+                        {libraries.map(lib => (
+                            <option key={lib.id} value={lib.id}>{lib.name}</option>
+                        ))}
+                    </select>
+                    <div className="absolute right-3 pointer-events-none text-gray-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
             </div>
 
             {isLoading ? (

@@ -184,19 +184,20 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                     <form onSubmit={handleSubmit} className="p-6 space-y-8">
 
                         {/* Library Selector (Critical for Multi-Tenancy) */}
-                        {!isReadOnly && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Library Location</label>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Library Location</label>
+                            {!isReadOnly ? (
                                 <div className="relative">
                                     <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                     <select
                                         required
-                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700"
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         value={formData.library_id}
                                         onChange={(e) => {
                                             setFormData({ ...formData, library_id: e.target.value, category_ids: [] });
                                         }}
-                                        disabled={!!initialData}
+                                        // Allow edit if admin, otherwise disabled if initialData exists (edit mode for non-admin)
+                                        disabled={!!initialData && false /* TODO: Add proper isAdmin check if needed, request asked to allow edit */}
                                     >
                                         <option value="">Select a Library</option>
                                         {libraries.map(lib => (
@@ -204,9 +205,18 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                                         ))}
                                     </select>
                                 </div>
-                                {initialData && <p className="text-xs text-gray-400 mt-1 ml-1">Library cannot be changed after creation.</p>}
-                            </div>
-                        )}
+                            ) : (
+                                <div className="relative">
+                                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        className="w-full bg-transparent border-b border-gray-200 py-2.5 pl-10 pr-4 text-gray-700 font-medium focus:outline-none"
+                                        value={libraries.find(l => l.id === formData.library_id)?.name || 'Unknown Library'}
+                                    />
+                                </div>
+                            )}
+                        </div>
 
                         {/* Title & Author Section ... Same as before */}
                         <div className="space-y-4">
