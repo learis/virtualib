@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Image as ImageIcon, Building } from 'lucide-react';
 import { type CreateBookDto, type Book } from '../services/bookService';
 
 interface BookModalProps {

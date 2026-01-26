@@ -1,71 +1,53 @@
-// ... imports
-import { Building, Filter } from 'lucide-react'; // Add Building icon
-import { getBooks, createBook, updateBook, deleteBook, restoreBook, getCategories, getLibraries, type Book, type CreateBookDto, type Category } from '../services/bookService';
-// ... imports
+import { useState, useEffect } from 'react';
+import { Plus, Search, Book as BookIcon, LayoutGrid, List as ListIcon, Edit2, Trash2, RefreshCcw, AlertTriangle, Filter } from 'lucide-react';
+import { getBooks, createBook, updateBook, deleteBook, restoreBook, getCategories, type Book, type CreateBookDto, type Category } from '../services/bookService';
+import { createRequest } from '../services/loanService';
+import { useAuthStore } from '../store/authStore';
+import { BookModal } from '../components/BookModal';
+
+type ViewMode = 'grid' | 'list';
+
+type SortOption = 'name_asc' | 'name_desc' | 'author_asc' | 'author_desc' | 'year_asc' | 'year_desc' | 'created_asc' | 'created_desc';
 
 export const Books = () => {
-    // ... states
     const [books, setBooks] = useState<Book[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const [libraries, setLibraries] = useState<{ id: string, name: string }[]>([]); // New state
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
-    const [selectedLibrary, setSelectedLibrary] = useState<string>(''); // New state
     const [sortBy, setSortBy] = useState<SortOption>('created_desc');
-    // ... other states
-
-    const user = useAuthStore(state => state.user);
-    const isAdmin = user?.role === 'admin';
+    const [editingBook, setEditingBook] = useState<Book | null>(null);
+    const [viewMode, setViewMode] = useState<ViewMode>('grid');
+    const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
+    const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
+    const [activeBookId, setActiveBookId] = useState<string | null>(null);
 
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            // Fetch Libraries first if Admin
-            let libs: any[] = [];
-            if (isAdmin && libraries.length === 0) {
-                try {
-                    libs = await getLibraries();
-                    setLibraries(Array.isArray(libs) ? libs : []);
-                } catch (e) {
-                    console.error('Failed to fetch libraries', e);
-                }
-            }
+            // Fetch independently to allow partial success
+            getBooks()
+                .then(data => setBooks(Array.isArray(data) ? data : []))
+                .catch(err => console.error('Failed to fetch books', err));
 
-            // Determine effective library filter
-            // If admin has selected a library, use it.
-            // If not selected, fetch all? Or force selection?
-            // Let's pass selectedLibrary if set.
-
-            const booksData = await getBooks(selectedLibrary || undefined);
-            setBooks(Array.isArray(booksData) ? booksData : []);
-
-            // Categories should also be specific to library if library is selected??
-            // User requested: "Selected library determines ... books".
-            // Logic: 
-            // 1. Admin Selects Library -> `selectedLibrary` updates.
-            // 2. `fetchData` runs (added to dependency).
-            // 3. `getBooks(selectedLibrary)` returns filtered books.
-            // 4. `getCategories(selectedLibrary)` returns filtered categories?
-            //    It makes sense to filter categories too so the filter dropdown is relevant.
-
-            const catsData = await getCategories(selectedLibrary || undefined);
-            setCategories(Array.isArray(catsData) ? catsData : []);
+            getCategories()
+                .then(data => setCategories(Array.isArray(data) ? data : []))
+                .catch(err => console.error('Failed to fetch categories', err));
 
         } catch (error) {
             console.error('Failed to init fetch', error);
         } finally {
+            // Short timeout to prevent flash if cache is fast
             setTimeout(() => setIsLoading(false), 300);
         }
     };
 
     useEffect(() => {
         fetchData();
-    }, [selectedLibrary]); // Re-fetch when library changes
+    }, []);
 
     const handleSaveBook = async (data: CreateBookDto) => {
-        // ... save logic
         if (editingBook && !isReadOnlyModal) {
             await updateBook(editingBook.id, data);
         } else if (!isReadOnlyModal) {
@@ -76,6 +58,9 @@ export const Books = () => {
         setIsReadOnlyModal(false);
     };
 
+    const user = useAuthStore(state => state.user);
+    const isAdmin = user?.role === 'admin';
+
     // ... helper functions
 
     return (
@@ -83,38 +68,11 @@ export const Books = () => {
             <div className="max-w-[1920px] mx-auto p-8 lg:p-12">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                    {/* Title ... */}
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-1">Library</h1>
                         <p className="text-sm text-gray-500 font-medium">Manage and curate your collection</p>
                     </div>
-
-                    {/* Action & Filter Area */}
-                    <div className="flex flex-wrap items-center gap-4">
-
-                        {/* Library Filter (Admin Only) */}
-                        {isAdmin && (
-                            <div className="relative group min-w-[200px]">
-                                <Building size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10" />
-                                <select
-                                    value={selectedLibrary}
-                                    onChange={(e) => {
-                                        setSelectedLibrary(e.target.value);
-                                        setSelectedCategory(''); // Reset category when library changes
-                                    }}
-                                    className="w-full h-10 pl-9 pr-8 bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-white hover:border-gray-300 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="">All Libraries</option>
-                                    {libraries.map(lib => (
-                                        <option key={lib.id} value={lib.id}>{lib.name}</option>
-                                    ))}
-                                </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
-                            </div>
-                        )}
-
+                    <div className="flex items-center gap-4">
                         {isAdmin && (
                             <button
                                 onClick={() => {
