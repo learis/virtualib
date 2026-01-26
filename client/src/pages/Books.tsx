@@ -376,7 +376,7 @@ export const Books = () => {
                                                 >
                                                     {book.name}
                                                 </h3>
-                                                <div className="flex flex-wrap items-center gap-2">
+                                                <div className="flex flex-col items-start gap-1">
                                                     <p className="text-xs md:text-sm text-gray-500 font-light line-clamp-1">{book.author}</p>
                                                     {isAdmin && book.library && (
                                                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">

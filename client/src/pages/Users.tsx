@@ -194,7 +194,9 @@ export const Users = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.role.role_name === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-gray-100 text-gray-800 border-gray-200'
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.role.role_name === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                            user.role.role_name === 'librarian' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                                'bg-gray-50 text-gray-600 border-gray-200'
                                                         }`}>
                                                         {user.role.role_name === 'admin' && <Shield size={12} className="mr-1" />}
                                                         {user.role.role_name}
