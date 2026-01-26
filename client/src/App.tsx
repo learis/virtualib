@@ -17,6 +17,11 @@ const PrivateRoute = ({ children }: { children: React.ReactElement }) => {
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
+const AdminRoute = ({ children }: { children: React.ReactElement }) => {
+  const user = useAuthStore((state) => state.user);
+  return user?.role === 'admin' ? children : <Navigate to="/books" replace />;
+};
+
 function App() {
   return (
     <BrowserRouter>
@@ -24,16 +29,14 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route path="dashboard" element={
-            useAuthStore.getState().user?.role === 'admin' ? <Dashboard /> : <Navigate to="/books" replace />
-          } />
+          <Route path="dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
           <Route path="books" element={<Books />} />
-          <Route path="libraries" element={<Libraries />} /> {/* Added route for Libraries */}
+          <Route path="libraries" element={<AdminRoute><Libraries /></AdminRoute>} />
           <Route path="categories" element={<Categories />} />
-          <Route path="users" element={<Users />} />
+          <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
           <Route path="loans" element={<Loans />} />
           <Route path="requests" element={<Requests />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
           <Route path="" element={<Navigate to={useAuthStore.getState().user?.role === 'admin' ? "/dashboard" : "/books"} replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
