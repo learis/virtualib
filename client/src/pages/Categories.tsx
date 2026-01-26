@@ -52,10 +52,8 @@ export const Categories = () => {
 
     useEffect(() => {
         fetchCategories();
-        if (isAdmin) {
-            fetchLibraries();
-        }
-    }, [isAdmin]);
+        fetchLibraries();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
