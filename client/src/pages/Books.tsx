@@ -61,7 +61,105 @@ export const Books = () => {
     const user = useAuthStore(state => state.user);
     const isAdmin = user?.role === 'admin';
 
-    // ... helper functions
+    const handleEditClick = (book: Book) => {
+        setEditingBook(book);
+        setIsReadOnlyModal(false);
+        setIsModalOpen(true);
+    };
+
+    const handleViewClick = (book: Book) => {
+        setEditingBook(book);
+        setIsReadOnlyModal(true);
+        setIsModalOpen(true);
+    };
+
+    const handleDeleteClick = (book: Book) => {
+        setBookToDelete(book);
+    };
+
+    const confirmDelete = async (type: 'soft' | 'hard') => {
+        if (!bookToDelete) return;
+        try {
+            await deleteBook(bookToDelete.id, type);
+            await fetchData();
+            setBookToDelete(null);
+        } catch (error) {
+            console.error('Failed to delete book', error);
+            alert('Failed to delete book');
+        }
+    };
+
+    const handleRestoreClick = async (book: Book) => {
+        if (confirm(`Restore "${book.name}"?`)) {
+            try {
+                await restoreBook(book.id);
+                await fetchData();
+            } catch (error) {
+                console.error('Failed to restore book', error);
+                alert('Failed to restore book');
+            }
+        }
+    };
+
+    const handleBorrowClick = async (book: Book) => {
+        if (!user) return;
+        if (isAdmin) {
+            alert('Admins cannot request books. Please use the Loan Management panel to assign books directly.');
+            return;
+        }
+
+        if (confirm(`Do you want to request to borrow "${book.name}"?`)) {
+            try {
+                await createRequest(book.id);
+                alert('Borrow request sent successfully!');
+            } catch (error: any) {
+                alert(error.response?.data?.message || 'Failed to send request');
+            }
+        }
+    };
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(30);
+
+    const filteredBooks = books.filter(book => {
+        const matchesSearch = book.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            book.isbn.includes(searchQuery);
+        const matchesCategory = selectedCategory ? book.categories?.some(c => c.category.id === selectedCategory) : true;
+        return matchesSearch && matchesCategory;
+    }).sort((a, b) => {
+        switch (sortBy) {
+            case 'name_asc': return a.name.localeCompare(b.name);
+            case 'name_desc': return b.name.localeCompare(a.name);
+            case 'author_asc': return a.author.localeCompare(b.author);
+            case 'author_desc': return b.author.localeCompare(a.author);
+            case 'year_asc': return a.publish_year - b.publish_year;
+            case 'year_desc': return b.publish_year - a.publish_year;
+            case 'created_asc': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            case 'created_desc': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            default: return 0;
+        }
+    });
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, selectedCategory, sortBy]);
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
+    const paginatedBooks = filteredBooks.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
 
     return (
         <div className="min-h-screen bg-white">
