@@ -12,6 +12,7 @@ const createBookSchema = z.object({
     publisher: z.string().min(1),
     cover_image_path: z.string().optional().or(z.literal('')),
     category_ids: z.array(z.string()).optional(), // Array of Category IDs
+    library_id: z.string().optional(), // Added for Admin updates
     summary_tr: z.string().optional().nullable(),
     summary_en: z.string().optional().nullable(),
 });
@@ -157,6 +158,7 @@ export const updateBook = async (req: Request, res: Response) => {
     try {
         const { id } = req.params as { id: string };
         const user = (req as any).user;
+        const isAdmin = user.role?.role_name === 'admin';
 
         const existingBook = await prisma.book.findUnique({ where: { id } });
 
@@ -171,6 +173,11 @@ export const updateBook = async (req: Request, res: Response) => {
 
         const { category_ids, ...bookData } = validation.data;
         const updateData: any = { ...bookData };
+
+        // Ensure only Admin can update library_id
+        if (updateData.library_id && !isAdmin) {
+            delete updateData.library_id;
+        }
 
         if (category_ids) {
             await prisma.bookCategory.deleteMany({ where: { book_id: id } });
