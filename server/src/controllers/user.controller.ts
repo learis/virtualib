@@ -23,7 +23,13 @@ export const getUsers = async (req: Request, res: Response) => {
 
         // Librarian Filter
         if (role === 'librarian') {
-            where.library = { owner_id: user.id };
+            // Filter by the librarian's assigned library OR ownership
+            if (user.library_id) {
+                where.library_id = user.library_id;
+            } else {
+                // Fallback to ownership if no library_id assigned (legacy/edge case)
+                where.library = { owner_id: user.id };
+            }
         }
 
         const users = await prisma.user.findMany({

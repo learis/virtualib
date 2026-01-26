@@ -77,7 +77,9 @@ export const Libraries = () => {
         setFormData({ name: '', description: '' });
     };
 
-    if (!isAdmin) {
+    const isLibrarian = user?.role === 'librarian';
+
+    if (!isAdmin && !isLibrarian) {
         return <div className="p-8 text-center text-red-600">Access Restricted</div>;
     }
 

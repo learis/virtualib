@@ -60,6 +60,8 @@ export const Books = () => {
 
     const user = useAuthStore(state => state.user);
     const isAdmin = user?.role === 'admin';
+    const isLibrarian = user?.role === 'librarian';
+    const canManage = isAdmin || isLibrarian;
 
     const handleEditClick = (book: Book) => {
         setEditingBook(book);
@@ -171,7 +173,7 @@ export const Books = () => {
                         <p className="text-sm text-gray-500 font-medium">Manage and curate your collection</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        {isAdmin && (
+                        {canManage && (
                             <button
                                 onClick={() => {
                                     setEditingBook(null);
@@ -275,7 +277,7 @@ export const Books = () => {
                     <div className="flex flex-col items-center justify-center py-32 text-gray-400">
                         <Search size={48} strokeWidth={1} className="mb-4 opacity-20" />
                         <p className="text-lg font-light">No books found in collection.</p>
-                        {isAdmin && (
+                        {canManage && (
                             <button
                                 onClick={() => {
                                     setEditingBook(null);
@@ -332,7 +334,7 @@ export const Books = () => {
                                                         )
                                                     ) : (
                                                         <>
-                                                            {!isAdmin && (
+                                                            {!canManage && (
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); handleBorrowClick(book); }}
                                                                     className="px-6 py-2 !bg-white !text-black text-xs font-bold tracking-wider uppercase hover:!bg-gray-200 transition-colors"
@@ -453,7 +455,7 @@ export const Books = () => {
                                                                             Request
                                                                         </button>
                                                                     )}
-                                                                    {isAdmin && (
+                                                                    {canManage && (
                                                                         <>
                                                                             <button
                                                                                 onClick={() => handleEditClick(book)}

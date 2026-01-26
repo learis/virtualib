@@ -25,6 +25,8 @@ export const Categories = () => {
 
     const user = useAuthStore(state => state.user);
     const isAdmin = user?.role === 'admin';
+    const isLibrarian = user?.role === 'librarian';
+    const canManage = isAdmin || isLibrarian;
 
     const fetchCategories = async () => {
         setIsLoading(true);
@@ -113,7 +115,7 @@ export const Categories = () => {
                     </h1>
                     <p className="text-gray-500 mt-1">Organize your library collection</p>
                 </div>
-                {isAdmin && (
+                {canManage && (
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="h-10 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-2 whitespace-nowrap"
@@ -167,7 +169,7 @@ export const Categories = () => {
                                     <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
                                         <Tag size={20} />
                                     </div>
-                                    {isAdmin && (
+                                    {canManage && (
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => handleEdit(category)}
