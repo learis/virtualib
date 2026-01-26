@@ -18,38 +18,31 @@ const createBookSchema = z.object({
 
 const updateBookSchema = createBookSchema.partial();
 
+// Helper to check ownership
+const canManageBook = (user: any, book: any) => {
+    if (user.role?.role_name === 'admin') return true;
+    return book.library_id === user.library_id;
+};
+
 export const getBooks = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user;
         if (!user || !user.library_id) return res.status(401).json({ message: 'Unauthorized' });
 
         const isAdmin = user.role?.role_name === 'admin';
-        const { library_id } = req.query; // Allow filtering by library_id for Admins
+        const { library_id } = req.query;
 
         const where: any = {};
 
-        // If User/Librarian -> Forced to their own library
         if (!isAdmin) {
             where.library_id = user.library_id;
             where.deleted_at = null;
         } else {
-            // If Admin -> Can filter by specific library OR see their own (or all? Currently limited to their library_id in previous code). 
-            // Previous code said `where = { library_id: user.library_id }`. 
-            // But Admin is usually super-admin in this context or multi-library admin?
-            // If Admin is Global, they can see all. If Admin is tied to a library, they see theirs.
-            // Assumption: Admin CAN see all if they want, but usually filtered.
-            // Let's allow `library_id` query param to override if provided (and if logic allows).
-            // For now, let's say if `library_id` query param exists, use it.
-            // If NOT exists: show all? or show logged-in library?
-            // Let's default to showing ALL for Admin if no filter, or filter if provided.
-
+            // Admin can filter by library
             if (library_id) {
                 where.library_id = library_id as string;
-            } else {
-                // If no filter, maybe show all?
-                // Or maybe just show nothing until selected?
-                // Let's show ALL for now.
             }
+            // If no filter, show all (Admin view)
         }
 
         const books = await prisma.book.findMany({
@@ -58,6 +51,7 @@ export const getBooks = async (req: Request, res: Response) => {
                 categories: {
                     include: { category: true }
                 },
+                library: true, // Include Library details
                 loans: {
                     where: { returned_at: null }
                 }
@@ -74,6 +68,7 @@ export const getBookById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params as { id: string };
         const user = (req as any).user;
+        const isAdmin = user.role?.role_name === 'admin';
 
         const book = await prisma.book.findUnique({
             where: { id },
@@ -81,15 +76,20 @@ export const getBookById = async (req: Request, res: Response) => {
                 categories: {
                     include: { category: true }
                 },
+                library: true,
                 loans: {
                     where: { returned_at: null }
                 }
             }
         });
 
-        if (!book || book.library_id !== user.library_id) {
+        if (!book) return res.status(404).json({ message: 'Book not found' });
+
+        // Access Control
+        if (!isAdmin && book.library_id !== user.library_id) {
             return res.status(404).json({ message: 'Book not found' });
         }
+
         res.json(book);
     } catch (error) {
         res.status(500).json({ message: 'Failed to fetch book', error });
@@ -99,6 +99,8 @@ export const getBookById = async (req: Request, res: Response) => {
 export const createBook = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user;
+        const isAdmin = user.role?.role_name === 'admin';
+
         const validation = createBookSchema.safeParse(req.body);
 
         if (!validation.success) {
@@ -107,13 +109,18 @@ export const createBook = async (req: Request, res: Response) => {
 
         const { category_ids, ...bookData } = validation.data;
 
+        // Determine Library ID
+        let targetLibraryId = user.library_id;
+        if (isAdmin && req.body.library_id) {
+            targetLibraryId = req.body.library_id;
+        }
+
         // AI Summary Generation
         let summaries = {
             summary_tr: bookData.summary_tr || '',
             summary_en: bookData.summary_en || ''
         };
 
-        // Only generate if NOT provided by frontend AND API Key exists
         if ((!summaries.summary_tr && !summaries.summary_en) && process.env.OPENAI_API_KEY) {
             const generated = await generateBookSummary(bookData.name, bookData.author);
             if (generated && !('error' in generated)) {
@@ -124,7 +131,7 @@ export const createBook = async (req: Request, res: Response) => {
         const book = await prisma.book.create({
             data: {
                 ...bookData,
-                library_id: user.library_id,
+                library_id: targetLibraryId,
                 summary_tr: summaries.summary_tr || null,
                 summary_en: summaries.summary_en || null,
                 categories: category_ids ? {
@@ -134,7 +141,8 @@ export const createBook = async (req: Request, res: Response) => {
                 } : undefined
             },
             include: {
-                categories: { include: { category: true } }
+                categories: { include: { category: true } },
+                library: true
             }
         });
 
@@ -150,10 +158,10 @@ export const updateBook = async (req: Request, res: Response) => {
         const { id } = req.params as { id: string };
         const user = (req as any).user;
 
-        // Check existence and scope
         const existingBook = await prisma.book.findUnique({ where: { id } });
-        if (!existingBook || existingBook.library_id !== user.library_id) {
-            return res.status(404).json({ message: 'Book not found' });
+
+        if (!existingBook || !canManageBook(user, existingBook)) {
+            return res.status(404).json({ message: 'Book not found or permission denied' });
         }
 
         const validation = updateBookSchema.safeParse(req.body);
@@ -162,17 +170,9 @@ export const updateBook = async (req: Request, res: Response) => {
         }
 
         const { category_ids, ...bookData } = validation.data;
-
-        // If implementing category updates, we'd delete existing relations and create new ones.
-        // For simplicity, handle basic fields first.
-
         const updateData: any = { ...bookData };
 
         if (category_ids) {
-            // Transaction-like update for relations
-            // Prisma update with 'set' can handle this cleanly if structure matches
-            // But many-to-many explicit table is tricky.
-            // We will wipe and recreate for simplicity in this MVP step
             await prisma.bookCategory.deleteMany({ where: { book_id: id } });
             updateData.categories = {
                 create: category_ids.map(id => ({
@@ -185,7 +185,8 @@ export const updateBook = async (req: Request, res: Response) => {
             where: { id },
             data: updateData,
             include: {
-                categories: { include: { category: true } }
+                categories: { include: { category: true } },
+                library: true
             }
         });
 
@@ -198,11 +199,11 @@ export const updateBook = async (req: Request, res: Response) => {
 export const deleteBook = async (req: Request, res: Response) => {
     try {
         const { id } = req.params as { id: string };
-        const { type } = req.query; // 'hard' or 'soft' (default)
+        const { type } = req.query;
         const user = (req as any).user;
 
         const existingBook = await prisma.book.findUnique({ where: { id } });
-        if (!existingBook || existingBook.library_id !== user.library_id) {
+        if (!existingBook || !canManageBook(user, existingBook)) {
             return res.status(404).json({ message: 'Book not found' });
         }
 
@@ -210,7 +211,6 @@ export const deleteBook = async (req: Request, res: Response) => {
             await prisma.book.delete({ where: { id } });
             res.json({ message: 'Book permanently deleted' });
         } else {
-            // Soft delete
             await prisma.book.update({
                 where: { id },
                 data: { deleted_at: new Date() }
@@ -228,7 +228,7 @@ export const restoreBook = async (req: Request, res: Response) => {
         const user = (req as any).user;
 
         const existingBook = await prisma.book.findUnique({ where: { id } });
-        if (!existingBook || existingBook.library_id !== user.library_id) {
+        if (!existingBook || !canManageBook(user, existingBook)) {
             return res.status(404).json({ message: 'Book not found' });
         }
 

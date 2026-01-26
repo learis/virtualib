@@ -19,6 +19,11 @@ export interface Book {
     }[]; // Added loans for status check
     deleted_at: string | null;
     created_at: string;
+    library_id: string;
+    library?: {
+        id: string;
+        name: string;
+    };
 }
 
 export interface CreateBookDto {

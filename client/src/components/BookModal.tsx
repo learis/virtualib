@@ -78,7 +78,7 @@ export const BookModal = ({ isOpen, onClose, onSubmit, initialData, isReadOnly =
                 // Ideally initialData has library_id.
                 // If missing in type, we assume it's attached or backend handles it (but for display we need it).
                 // Assuming book.library_id exists on the object.
-                library_id: (initialData as any).library_id || '',
+                library_id: initialData.library_id || '',
                 category_ids: initialData.categories ? initialData.categories.map(c => c.category.id) : [],
                 summary_tr: initialData.summary_tr || '',
                 summary_en: initialData.summary_en || ''

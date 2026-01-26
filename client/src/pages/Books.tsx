@@ -376,7 +376,14 @@ export const Books = () => {
                                                 >
                                                     {book.name}
                                                 </h3>
-                                                <p className="text-xs md:text-sm text-gray-500 font-light line-clamp-1">{book.author}</p>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-xs md:text-sm text-gray-500 font-light line-clamp-1">{book.author}</p>
+                                                    {isAdmin && book.library && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                                                            {book.library.name}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     )
@@ -416,7 +423,14 @@ export const Books = () => {
                                                                 >
                                                                     {book.name}
                                                                 </span>
-                                                                {isDeleted && <span className="text-[10px] text-red-500 font-bold uppercase tracking-wide">Disabled</span>}
+                                                                <div className="flex gap-2 items-center mt-0.5">
+                                                                    {isDeleted && <span className="text-[10px] text-red-500 font-bold uppercase tracking-wide">Disabled</span>}
+                                                                    {isAdmin && book.library && (
+                                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                                                                            {book.library.name}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </td>
