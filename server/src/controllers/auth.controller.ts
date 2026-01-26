@@ -40,7 +40,7 @@ export const login = async (req: Request, res: Response) => {
                 email: user.email,
                 role: user.role.role_name,
                 library_id: user.library_id,
-                library_name: user.library.name,
+                library_name: user.library?.name || 'Managed Library',
             },
         });
     } catch (error) {
