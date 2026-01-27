@@ -35,7 +35,7 @@ function canManageBook(user: any, book: any): boolean {
 export const getBooks = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user;
-        if (!user || !user.id) return res.status(401).json({ message: 'Unauthorized' });
+
 
         const isAdmin = user.role?.role_name === 'admin';
         const { library_id } = req.query;
