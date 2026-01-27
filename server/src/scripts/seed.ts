@@ -17,29 +17,36 @@ const seed = async () => {
         });
 
         // Default Library
-        const library = await prisma.library.create({
-            data: {
-                name: 'Main Library',
-                description: 'The main library instance',
-                settings: {
-                    create: {
-                        reminder_rules: [
-                            { days: 3, message: '3 days passed' },
-                            { days: 7, message: 'Overdue!' }
-                        ],
-                        email_templates: {
-                            reminder: 'Hello ${user}, please return ${borrowed_books}.'
+        let library = await prisma.library.findFirst({ where: { name: 'Main Library' } });
+        if (!library) {
+            library = await prisma.library.create({
+                data: {
+                    name: 'Main Library',
+                    description: 'The main library instance',
+                    settings: {
+                        create: {
+                            reminder_rules: [
+                                { days: 3, message: '3 days passed' },
+                                { days: 7, message: 'Overdue!' }
+                            ],
+                            email_templates: {
+                                reminder: 'Hello ${user}, please return ${borrowed_books}.'
+                            }
                         }
                     }
-                }
-            },
-        });
+                },
+            });
+        }
 
         // Admin User
         const adminPassword = await hashPassword('admin123');
         await prisma.user.upsert({
             where: { email: 'admin@openlib.com' },
-            update: {},
+            update: {
+                libraries: {
+                    connect: [{ id: library.id }]
+                }
+            },
             create: {
                 name: 'Admin',
                 surname: 'User',
