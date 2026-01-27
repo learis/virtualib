@@ -35,18 +35,37 @@ export const getBooks = async (req: Request, res: Response) => {
 
         const where: any = {};
 
-        if (!isAdmin) {
-            where.library_id = user.library_id;
-            // Only hide deleted books for standard users, allow librarians to see them
-            if (user.role?.role_name === 'user') {
-                where.deleted_at = null;
+        if (user.role?.role_name === 'librarian') {
+            const ownedLibs = await prisma.library.findMany({
+                where: { owner_id: user.id },
+                select: { id: true }
+            });
+            const allowedIds = ownedLibs.map(l => l.id);
+            if (user.library_id) allowedIds.push(user.library_id);
+
+            if (library_id) {
+                if (!allowedIds.includes(library_id as string)) {
+                    return res.json([]);
+                }
+                where.library_id = library_id as string;
+            } else {
+                if (allowedIds.length > 0) {
+                    where.library_id = { in: allowedIds };
+                } else {
+                    return res.json([]);
+                }
             }
+            // Include soft-deleted books for librarians
+            // No 'deleted_at' filter needed here as we want to see them (with styles)
+        } else if (!isAdmin) {
+            // Standard User
+            where.library_id = user.library_id;
+            where.deleted_at = null;
         } else {
             // Admin can filter by library
             if (library_id) {
                 where.library_id = library_id as string;
             }
-            // If no filter, show all (Admin view)
         }
 
         const books = await prisma.book.findMany({

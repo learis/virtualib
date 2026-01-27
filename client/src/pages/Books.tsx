@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Book as BookIcon, LayoutGrid, List as ListIcon, Edit2, Trash2, RefreshCcw, AlertTriangle, Filter } from 'lucide-react';
-import { getBooks, createBook, updateBook, deleteBook, restoreBook, getCategories, type Book, type CreateBookDto, type Category } from '../services/bookService';
+import { getBooks, createBook, updateBook, deleteBook, restoreBook, getCategories, getLibraries, type Book, type CreateBookDto, type Category } from '../services/bookService';
 import { createRequest } from '../services/loanService';
 import { useAuthStore } from '../store/authStore';
 import { BookModal } from '../components/BookModal';
@@ -20,6 +20,9 @@ export const Books = () => {
     const [editingBook, setEditingBook] = useState<Book | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
+    const [selectedLibrary, setSelectedLibrary] = useState<string>('');
+    const [libraries, setLibraries] = useState<any[]>([]);
+    const [showDoubleConfirm, setShowDoubleConfirm] = useState(false);
     const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
     const [activeBookId, setActiveBookId] = useState<string | null>(null);
 
@@ -27,13 +30,18 @@ export const Books = () => {
         setIsLoading(true);
         try {
             // Fetch independently to allow partial success
-            getBooks()
+            // Fetch independently to allow partial success
+            getBooks(selectedLibrary)
                 .then(data => setBooks(Array.isArray(data) ? data : []))
                 .catch(err => console.error('Failed to fetch books', err));
 
-            getCategories()
+            getCategories(selectedLibrary)
                 .then(data => setCategories(Array.isArray(data) ? data : []))
                 .catch(err => console.error('Failed to fetch categories', err));
+
+            getLibraries()
+                .then(data => setLibraries(Array.isArray(data) ? data : []))
+                .catch(err => console.error('Failed to fetch libraries', err));
 
         } catch (error) {
             console.error('Failed to init fetch', error);
@@ -45,7 +53,7 @@ export const Books = () => {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [selectedLibrary]);
 
     const handleSaveBook = async (data: CreateBookDto) => {
         if (editingBook && !isReadOnlyModal) {
@@ -76,6 +84,7 @@ export const Books = () => {
     };
 
     const handleDeleteClick = (book: Book) => {
+        setShowDoubleConfirm(false);
         setBookToDelete(book);
     };
 
@@ -88,6 +97,8 @@ export const Books = () => {
         } catch (error) {
             console.error('Failed to delete book', error);
             alert('Failed to delete book');
+        } finally {
+            setShowDoubleConfirm(false);
         }
     };
 
@@ -225,6 +236,26 @@ export const Books = () => {
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </div>
                             </div>
+
+                            {/* Library Filter */}
+                            {(isAdmin || isLibrarian) && (
+                                <div className="flex-1 md:w-48 bg-white border border-gray-200 shadow-sm rounded-lg flex items-center h-12 px-3 relative hover:border-gray-300 transition-colors">
+                                    <Filter size={16} className="absolute left-3 text-gray-400" />
+                                    <select
+                                        className="w-full bg-transparent outline-none text-gray-700 font-medium cursor-pointer text-sm appearance-none pl-6 pr-8 truncate"
+                                        value={selectedLibrary}
+                                        onChange={(e) => setSelectedLibrary(e.target.value)}
+                                    >
+                                        <option value="">All Libraries</option>
+                                        {libraries.map(lib => (
+                                            <option key={lib.id} value={lib.id}>{lib.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Sort Filter */}
                             <div className="flex-1 md:w-56 bg-white border border-gray-200 shadow-sm rounded-lg flex items-center h-12 px-3 relative hover:border-gray-300 transition-colors">
@@ -561,44 +592,71 @@ export const Books = () => {
                 {bookToDelete && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
                         <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
-                            <div className="flex flex-col items-center text-center gap-4">
-                                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
-                                    <AlertTriangle size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-900">Delete "{bookToDelete.name}"?</h3>
-                                    <p className="text-sm text-gray-500 mt-2">Choose how you want to remove this book.</p>
-                                </div>
+                            {!showDoubleConfirm ? (
+                                <div className="flex flex-col items-center text-center gap-4">
+                                    <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center">
+                                        <AlertTriangle size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900">Delete "{bookToDelete.name}"?</h3>
+                                        <p className="text-sm text-gray-500 mt-2">Choose how you want to remove this book.</p>
+                                    </div>
 
-                                <div className="grid grid-cols-1 w-full gap-3 mt-4">
+                                    <div className="grid grid-cols-1 w-full gap-3 mt-4">
+                                        <button
+                                            onClick={() => confirmDelete('soft')}
+                                            className="w-full py-4 px-4 !bg-indigo-200 hover:!bg-indigo-300 text-indigo-900 font-medium rounded-xl transition-all border !border-indigo-300 hover:!border-indigo-400 hover:shadow-md flex flex-col items-center group/soft"
+                                        >
+                                            <span className="flex items-center gap-2 text-lg"><RefreshCcw size={20} className="group-hover/soft:-rotate-180 transition-transform duration-500" /> Disable Book</span>
+                                            <span className="text-sm text-indigo-700 font-normal mt-1">Hide from users (Reversible)</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => setShowDoubleConfirm(true)}
+                                            className="w-full py-4 px-4 !bg-red-200 hover:!bg-red-300 text-red-900 font-medium rounded-xl transition-all border !border-red-300 hover:!border-red-400 hover:shadow-md flex flex-col items-center group/hard"
+                                        >
+                                            <span className="flex items-center gap-2 text-lg"><Trash2 size={20} className="group-hover/hard:scale-110 transition-transform" /> Delete Permanently</span>
+                                            <span className="text-sm text-red-800/80 font-normal mt-1">Remove data forever (Irreversible)</span>
+                                        </button>
+                                    </div>
+
                                     <button
-                                        onClick={() => confirmDelete('soft')}
-                                        className="w-full py-4 px-4 !bg-indigo-200 hover:!bg-indigo-300 text-indigo-900 font-medium rounded-xl transition-all border !border-indigo-300 hover:!border-indigo-400 hover:shadow-md flex flex-col items-center group/soft"
+                                        onClick={() => setBookToDelete(null)}
+                                        className="mt-2 text-gray-400 hover:text-gray-600 text-sm font-medium"
                                     >
-                                        <span className="flex items-center gap-2 text-lg"><RefreshCcw size={20} className="group-hover/soft:-rotate-180 transition-transform duration-500" /> Disable Book</span>
-                                        <span className="text-sm text-indigo-700 font-normal mt-1">Hide from users (Reversible)</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            if (confirm('DANGER: This will permanently delete the book and cannot be undone. Are you sure?')) {
-                                                confirmDelete('hard');
-                                            }
-                                        }}
-                                        className="w-full py-4 px-4 !bg-red-200 hover:!bg-red-300 text-red-900 font-medium rounded-xl transition-all border !border-red-300 hover:!border-red-400 hover:shadow-md flex flex-col items-center group/hard"
-                                    >
-                                        <span className="flex items-center gap-2 text-lg"><Trash2 size={20} className="group-hover/hard:scale-110 transition-transform" /> Delete Permanently</span>
-                                        <span className="text-sm text-red-800/80 font-normal mt-1">Remove data forever (Irreversible)</span>
+                                        Cancel
                                     </button>
                                 </div>
+                            ) : (
+                                <div className="flex flex-col items-center text-center gap-4">
+                                    <div className="w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center animate-bounce">
+                                        <AlertTriangle size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-900">Are you absolutely sure?</h3>
+                                        <p className="text-sm text-red-600 mt-2 font-medium bg-red-50 p-3 rounded-lg border border-red-100">
+                                            This action CANNOT be undone. <br />
+                                            The book <strong>"{bookToDelete.name}"</strong> will be permanently erased from the database.
+                                        </p>
+                                    </div>
 
-                                <button
-                                    onClick={() => setBookToDelete(null)}
-                                    className="mt-2 text-gray-400 hover:text-gray-600 text-sm font-medium"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
+                                    <div className="grid grid-cols-1 w-full gap-3 mt-4">
+                                        <button
+                                            onClick={() => confirmDelete('hard')}
+                                            className="w-full py-4 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow hover:shadow-lg flex items-center justify-center gap-2"
+                                        >
+                                            <Trash2 size={20} />
+                                            Yes, Delete Forever
+                                        </button>
+                                        <button
+                                            onClick={() => setShowDoubleConfirm(false)}
+                                            className="w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
+                                        >
+                                            Go Back
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
