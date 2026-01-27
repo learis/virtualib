@@ -250,8 +250,25 @@ export const restoreBook = async (req: Request, res: Response) => {
         const user = (req as any).user;
 
         const existingBook = await prisma.book.findUnique({ where: { id } });
-        if (!existingBook || !canManageBook(user, existingBook)) {
-            return res.status(404).json({ message: 'Book not found' });
+        if (!existingBook) return res.status(404).json({ message: 'Book not found' });
+
+        // Check permission (Admin or Assigned or Owner)
+        let hasPermission = false;
+        if (canManageBook(user, existingBook)) {
+            hasPermission = true;
+        } else if (user.role?.role_name === 'librarian') {
+            // Check ownership
+            const hasOwnership = await prisma.library.count({
+                where: {
+                    id: existingBook.library_id,
+                    owner_id: user.id
+                }
+            });
+            if (hasOwnership > 0) hasPermission = true;
+        }
+
+        if (!hasPermission) {
+            return res.status(403).json({ message: 'Forbidden' });
         }
 
         await prisma.book.update({

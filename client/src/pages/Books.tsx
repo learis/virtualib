@@ -329,7 +329,7 @@ export const Books = () => {
                                                 {/* Overlay Actions */}
                                                 <div className={`absolute inset-0 bg-black/60 transition-opacity duration-300 flex flex-col items-center justify-center gap-3 ${activeBookId === book.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                                                     {isDeleted ? (
-                                                        isAdmin && (
+                                                        canManage && (
                                                             <button onClick={(e) => { e.stopPropagation(); handleRestoreClick(book); }} className="px-6 py-2 bg-green-600 text-white text-xs font-bold uppercase hover:bg-green-700">Restore</button>
                                                         )
                                                     ) : (
@@ -444,7 +444,9 @@ export const Books = () => {
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex items-center justify-end gap-3">
                                                             {isDeleted ? (
-                                                                isAdmin && <button onClick={() => handleRestoreClick(book)} className="text-green-600 hover:text-green-800" title="Restore"><RefreshCcw size={18} /></button>
+                                                                canManage && (
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleRestoreClick(book); }} className="text-green-600 hover:text-green-800" title="Restore"><RefreshCcw size={18} /></button>
+                                                                )
                                                             ) : (
                                                                 <>
                                                                     {!isAdmin && (
