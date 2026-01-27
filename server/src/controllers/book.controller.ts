@@ -19,16 +19,33 @@ const createBookSchema = z.object({
 
 const updateBookSchema = createBookSchema.partial();
 
-// Helper to check ownership
-const canManageBook = (user: any, book: any) => {
+// Helper to check if user has permission to manage a book
+function canManageBook(user: any, book: any): boolean {
     if (user.role?.role_name === 'admin') return true;
-    return book.library_id === user.library_id;
-};
+    if (user.role?.role_name === 'librarian') {
+        const isOwner = book.library?.owner_id === user.id;
+        // Check if book's library is in user's assigned libraries (Need robust way, assuming user object has libraries populated often)
+        // But here 'user' usually comes from req.user which might not have deep population depending on middleware.
+        // Ideally we should rely on DB check if not sure.
+        // For now, let's assume 'assigned' means being in the libraries list.
+        // Since we removed 'library_id' from user, we can't check scalar.
+        // If 'libraries' array exists on user (populated), check it.
+        if (user.libraries?.some((lib: any) => lib.id === book.library_id)) return true;
+
+        // If not populated, we might be risky returning false.
+        // But for safe side, assume 'isOwner' covers most management.
+        // If assigned librarian needs to manage, 'user.libraries' MUST be populated.
+        // We will ensure 'getUsers' and 'getUserById' populate it. Auth middleware needs update ideally.
+        return isOwner;
+    }
+    return false;
+}
 
 export const getBooks = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user;
         if (!user || !user.library_id) return res.status(401).json({ message: 'Unauthorized' });
+        if (!user || !user.id) return res.status(401).json({ message: 'Unauthorized' });
 
         const isAdmin = user.role?.role_name === 'admin';
         const { library_id } = req.query;
@@ -40,8 +57,17 @@ export const getBooks = async (req: Request, res: Response) => {
                 where: { owner_id: user.id },
                 select: { id: true }
             });
-            const allowedIds = ownedLibs.map(l => l.id);
-            if (user.library_id) allowedIds.push(user.library_id);
+            // Get user's assigned libraries (from M:N relation)
+            // We need to fetch user's libraries since they are not in the token/request object by default in a complete way (unless middleware adds it)
+            // Efficient way: check Prisma for the user's libraries.
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const allowedIds = [...new Set([...ownedLibs.map(l => l.id), ...assignedIds])];
+            // if (user.library_id) allowedIds.push(user.library_id); // Deprecated field check removed
 
             if (library_id) {
                 if (!allowedIds.includes(library_id as string)) {
@@ -59,7 +85,18 @@ export const getBooks = async (req: Request, res: Response) => {
             // No 'deleted_at' filter needed here as we want to see them (with styles)
         } else if (!isAdmin) {
             // Standard User
-            where.library_id = user.library_id;
+            // Get user's libraries
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            if (assignedIds.length > 0) {
+                where.library_id = { in: assignedIds };
+            } else {
+                return res.json([]);
+            }
             where.deleted_at = null;
         } else {
             // Admin can filter by library

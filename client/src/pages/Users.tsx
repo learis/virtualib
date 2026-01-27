@@ -11,8 +11,7 @@ interface User {
     phone?: string;
     role: { id: string; role_name: string };
     role_id?: string;
-    library: { id: string; name: string };
-    library_id?: string;
+    libraries?: { id: string; name: string }[];
     is_active: boolean;
 }
 
@@ -167,7 +166,7 @@ export const Users = () => {
                                     <tr>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
-                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Library</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Libraries</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                                         <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
@@ -195,15 +194,17 @@ export const Users = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${user.role.role_name === 'admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                                            user.role.role_name === 'librarian' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-                                                                'bg-gray-50 text-gray-600 border-gray-200'
+                                                        user.role.role_name === 'librarian' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                            'bg-gray-50 text-gray-600 border-gray-200'
                                                         }`}>
                                                         {user.role.role_name === 'admin' && <Shield size={12} className="mr-1" />}
                                                         {user.role.role_name}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {user.library?.name || '-'}
+                                                    {user.libraries && user.libraries.length > 0
+                                                        ? user.libraries.map(l => l.name).join(', ')
+                                                        : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border ${user.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'

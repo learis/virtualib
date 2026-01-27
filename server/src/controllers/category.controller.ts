@@ -24,17 +24,27 @@ export const getCategories = async (req: Request, res: Response) => {
             });
 
             const allowedIds = ownedLibs.map(l => l.id);
-            if (user.library_id) allowedIds.push(user.library_id);
+
+            // Get user's assigned libraries (from M:N relation)
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const allAllowedIds = [...new Set([...allowedIds, ...assignedIds])];
+
+            // if (user.library_id) allowedIds.push(user.library_id); // Removed
 
             // If specific library requested, ensure it's allowed
             if (library_id) {
-                if (!allowedIds.includes(library_id as string)) {
+                if (!allAllowedIds.includes(library_id as string)) {
                     return res.json([]);
                 }
                 where.library_id = library_id;
             } else {
-                if (allowedIds.length > 0) {
-                    where.library_id = { in: allowedIds };
+                if (allAllowedIds.length > 0) {
+                    where.library_id = { in: allAllowedIds };
                 } else {
                     return res.json([]);
                 }
@@ -68,10 +78,16 @@ export const createCategory = async (req: Request, res: Response) => {
 
         // Librarian Scope Check
         if (role === 'librarian') {
-            // Must belong to their library
-            const isAssigned = user.library_id === data.library_id;
-            // Or ownership check as fallback
+            // Must belong to their assigned libraries or owned
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            // Check ownership
             const isOwned = await validateLibraryOwnership(user.id, data.library_id);
+            const isAssigned = assignedIds.includes(data.library_id);
 
             if (!isAssigned && !isOwned) {
                 return res.status(403).json({ message: 'Forbidden: You do not have access to this library' });
@@ -109,7 +125,13 @@ export const updateCategory = async (req: Request, res: Response) => {
 
         // Librarian Scope Check
         if (role === 'librarian') {
-            const isAssigned = user.library_id === category.library_id;
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const isAssigned = assignedIds.includes(category.library_id);
             const isOwned = category.library.owner_id === user.id;
 
             if (!isAssigned && !isOwned) return res.status(403).json({ message: 'Forbidden' });
@@ -121,9 +143,15 @@ export const updateCategory = async (req: Request, res: Response) => {
             libraryIdToUpdate = req.body.library_id;
             // Validate access to new library
             if (role === 'librarian') {
+                const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+                const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
                 const targetLib = await prisma.library.findUnique({ where: { id: libraryIdToUpdate } });
-                if (!targetLib || targetLib.owner_id !== user.id) {
-                    return res.status(403).json({ message: 'Forbidden: You do not own the target library' });
+                const isOwned = targetLib?.owner_id === user.id;
+                const isAssigned = assignedIds.includes(libraryIdToUpdate);
+
+                if (!targetLib || (!isOwned && !isAssigned)) {
+                    return res.status(403).json({ message: 'Forbidden: You do not access to the target library' });
                 }
             }
         }
@@ -157,7 +185,13 @@ export const deleteCategory = async (req: Request, res: Response) => {
 
         // Librarian Scope Check
         if (role === 'librarian') {
-            const isAssigned = user.library_id === category.library_id;
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const isAssigned = assignedIds.includes(category.library_id);
             const isOwned = category.library.owner_id === user.id;
 
             if (!isAssigned && !isOwned) return res.status(403).json({ message: 'Forbidden' });

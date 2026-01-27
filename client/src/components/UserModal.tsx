@@ -17,7 +17,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
         password: '',
         phone: '',
         role_id: '',
-        library_id: ''
+        library_ids: [] as string[]
     });
     const [roles, setRoles] = useState<any[]>([]);
     const [libraries, setLibraries] = useState<any[]>([]);
@@ -32,16 +32,12 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                 ]);
 
                 // Filter Roles for Librarian
-                // Assuming backend doesn't filter roles, we filter here for UI logic
-                // But generally backend should probably filter too or we trust UI for UX.
-                // Current user from store?
                 const userString = localStorage.getItem('user');
                 const currentUser = userString ? JSON.parse(userString) : null;
                 const isLibrarian = currentUser?.role === 'librarian';
 
                 if (isLibrarian) {
                     setRoles(rolesRes.data.filter((r: any) => r.role_name === 'user'));
-                    // Libraries are already filtered by backend for Librarian (in updated library.controller)
                     setLibraries(libsRes.data);
                 } else {
                     setRoles(rolesRes.data);
@@ -66,7 +62,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                 password: '', // Don't show existing password
                 phone: initialData.phone || '',
                 role_id: initialData.role?.id || initialData.role_id || '',
-                library_id: initialData.library?.id || initialData.library_id || ''
+                library_ids: initialData.libraries ? initialData.libraries.map((l: any) => l.id) : []
             });
         } else {
             setFormData({
@@ -76,7 +72,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                 password: '',
                 phone: '',
                 role_id: '',
-                library_id: ''
+                library_ids: []
             });
         }
     }, [initialData, isOpen]);
@@ -101,6 +97,11 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleLibraryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+        setFormData({ ...formData, library_ids: selectedOptions });
     };
 
     return (
@@ -189,14 +190,16 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Library</label>
+                            <label className="block text-sm font-medium mb-1">
+                                Libraries <span className="text-xs text-gray-500 font-normal">(Hold Cmd/Ctrl to select multiple)</span>
+                            </label>
                             <select
+                                multiple
                                 required
-                                className="input"
-                                value={formData.library_id}
-                                onChange={(e) => setFormData({ ...formData, library_id: e.target.value })}
+                                className="input min-h-[100px]"
+                                value={formData.library_ids}
+                                onChange={handleLibraryChange}
                             >
-                                <option value="">Select Library</option>
                                 {libraries.map(lib => (
                                     <option key={lib.id} value={lib.id}>{lib.name}</option>
                                 ))}
