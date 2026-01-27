@@ -20,13 +20,15 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         });
 
         if (!user || !user.is_active) {
-            return res.status(401).json({ message: 'Unauthorized: User not found or inactive' });
+            // DEBUG: Changed to 403
+            return res.status(403).json({ message: 'Unauthorized: User not found or inactive' });
         }
 
         (req as any).user = user;
         next();
     } catch (error) {
-        return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+        // DEBUG: Changed to 403
+        return res.status(403).json({ message: 'Unauthorized: Invalid token' });
     }
 };
 
