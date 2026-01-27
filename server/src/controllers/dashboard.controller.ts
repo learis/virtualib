@@ -6,8 +6,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const role = user.role.role_name;
 
-        const user = (req as any).user;
-        const role = user.role.role_name;
+
 
         // Determine Filter Context
         let whereLibrary: any = {};
