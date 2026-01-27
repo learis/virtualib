@@ -16,10 +16,6 @@ export const Login = () => {
         try {
             await login({ email, password });
             const user = useAuthStore.getState().user;
-            const token = useAuthStore.getState().token;
-            console.log('DEBUG: Login complete. Token:', token);
-            console.log('DEBUG: LocalStorage Token:', localStorage.getItem('token'));
-
             if (user?.role === 'admin') {
                 navigate('/dashboard');
             } else {
