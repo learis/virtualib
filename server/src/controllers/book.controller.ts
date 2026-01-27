@@ -37,7 +37,10 @@ export const getBooks = async (req: Request, res: Response) => {
 
         if (!isAdmin) {
             where.library_id = user.library_id;
-            where.deleted_at = null;
+            // Only hide deleted books for standard users, allow librarians to see them
+            if (user.role?.role_name === 'user') {
+                where.deleted_at = null;
+            }
         } else {
             // Admin can filter by library
             if (library_id) {
@@ -183,9 +186,12 @@ export const updateBook = async (req: Request, res: Response) => {
         const { category_ids, ...bookData } = validation.data;
         const updateData: any = { ...bookData };
 
-        // Ensure only Admin can update library_id
+        // Ensure only Admin or Owner can update library_id
         if (updateData.library_id && !isAdmin) {
-            delete updateData.library_id;
+            const targetLib = await prisma.library.findUnique({ where: { id: updateData.library_id } });
+            if (!targetLib || targetLib.owner_id !== user.id) {
+                delete updateData.library_id; // Silently ignore if not allowed
+            }
         }
 
         if (category_ids) {

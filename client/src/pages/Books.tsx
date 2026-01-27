@@ -578,7 +578,11 @@ export const Books = () => {
                                     </button>
 
                                     <button
-                                        onClick={() => confirmDelete('hard')}
+                                        onClick={() => {
+                                            if (confirm('DANGER: This will permanently delete the book and cannot be undone. Are you sure?')) {
+                                                confirmDelete('hard');
+                                            }
+                                        }}
                                         className="w-full py-4 px-4 !bg-red-200 hover:!bg-red-300 text-red-900 font-medium rounded-xl transition-all border !border-red-300 hover:!border-red-400 hover:shadow-md flex flex-col items-center group/hard"
                                     >
                                         <span className="flex items-center gap-2 text-lg"><Trash2 size={20} className="group-hover/hard:scale-110 transition-transform" /> Delete Permanently</span>

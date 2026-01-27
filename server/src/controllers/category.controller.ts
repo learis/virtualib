@@ -115,9 +115,25 @@ export const updateCategory = async (req: Request, res: Response) => {
             if (!isAssigned && !isOwned) return res.status(403).json({ message: 'Forbidden' });
         }
 
+        // Handle library_id update
+        let libraryIdToUpdate = undefined;
+        if (req.body.library_id) {
+            libraryIdToUpdate = req.body.library_id;
+            // Validate access to new library
+            if (role === 'librarian') {
+                const targetLib = await prisma.library.findUnique({ where: { id: libraryIdToUpdate } });
+                if (!targetLib || targetLib.owner_id !== user.id) {
+                    return res.status(403).json({ message: 'Forbidden: You do not own the target library' });
+                }
+            }
+        }
+
         const updatedCategory = await prisma.category.update({
             where: { id },
-            data: { name }
+            data: {
+                name,
+                ...(libraryIdToUpdate ? { library_id: libraryIdToUpdate } : {})
+            }
         });
         res.json(updatedCategory);
     } catch (error) {

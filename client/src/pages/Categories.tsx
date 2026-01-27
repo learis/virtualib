@@ -61,7 +61,7 @@ export const Categories = () => {
         e.preventDefault();
         try {
             if (editingCategory) {
-                await api.put(`/categories/${editingCategory.id}`, { name });
+                await api.put(`/categories/${editingCategory.id}`, { name, library_id: libraryId });
             } else {
                 await api.post('/categories', { name, library_id: libraryId });
             }
@@ -85,6 +85,7 @@ export const Categories = () => {
     const handleEdit = (category: Category) => {
         setEditingCategory(category);
         setName(category.name);
+        setLibraryId(category.library.id);
         setIsModalOpen(true);
     };
 
@@ -229,21 +230,19 @@ export const Categories = () => {
                                 />
                             </div>
 
-                            {!editingCategory && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Library</label>
-                                    <select
-                                        required
-                                        className="input"
-                                        value={libraryId}
-                                        onChange={(e) => setLibraryId(e.target.value)}
-                                    >
-                                        {libraries.map(lib => (
-                                            <option key={lib.id} value={lib.id}>{lib.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Library</label>
+                                <select
+                                    required
+                                    className="input"
+                                    value={libraryId}
+                                    onChange={(e) => setLibraryId(e.target.value)}
+                                >
+                                    {libraries.map(lib => (
+                                        <option key={lib.id} value={lib.id}>{lib.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
                             <div className="flex justify-end gap-3 pt-4">
                                 <button
