@@ -4,11 +4,11 @@ import { authenticate, authorize } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Only Admins can manage library details for now (or SuperAdmin if we had one)
+// Only Admins and Librarians can manage library details
 router.get('/', authenticate, getAllLibraries);
-router.post('/', authenticate, authorize(['admin']), createLibrary);
+router.post('/', authenticate, authorize(['admin', 'librarian']), createLibrary);
 router.get('/:id', authenticate, getLibrary);
-router.put('/:id', authenticate, authorize(['admin']), updateLibrary);
-router.delete('/:id', authenticate, authorize(['admin']), deleteLibrary);
+router.put('/:id', authenticate, authorize(['admin', 'librarian']), updateLibrary);
+router.delete('/:id', authenticate, authorize(['admin', 'librarian']), deleteLibrary);
 
 export default router;

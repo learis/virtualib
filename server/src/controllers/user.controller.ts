@@ -119,8 +119,10 @@ export const getUserById = async (req: Request, res: Response) => {
 
         // Librarian Scope Check
         if (currentRole === 'librarian') {
+            const isAssigned = user.library_id === currentUser.library_id;
             const isOwned = user.library?.owner_id === currentUser.id;
-            if (!isOwned) return res.status(403).json({ message: 'Forbidden' });
+
+            if (!isAssigned && !isOwned) return res.status(403).json({ message: 'Forbidden' });
         }
 
         res.json(user);
@@ -144,9 +146,12 @@ export const updateUser = async (req: Request, res: Response) => {
         if (!targetUser) return res.status(404).json({ message: 'User not found' });
 
         // Librarian Scope Check
+        // Librarian Scope Check
         if (currentRole === 'librarian') {
+            const isAssigned = targetUser.library_id === currentUser.library_id;
             const isOwned = targetUser.library?.owner_id === currentUser.id;
-            if (!isOwned) return res.status(403).json({ message: 'Forbidden' });
+
+            if (!isAssigned && !isOwned) return res.status(403).json({ message: 'Forbidden' });
         }
 
         let updateData: any = { ...data };
@@ -176,9 +181,12 @@ export const deleteUser = async (req: Request, res: Response) => {
         if (!targetUser) return res.status(404).json({ message: 'User not found' });
 
         // Librarian Scope Check
+        // Librarian Scope Check
         if (currentRole === 'librarian') {
+            const isAssigned = targetUser.library_id === currentUser.library_id;
             const isOwned = targetUser.library?.owner_id === currentUser.id;
-            if (!isOwned) return res.status(403).json({ message: 'Forbidden' });
+
+            if (!isAssigned && !isOwned) return res.status(403).json({ message: 'Forbidden' });
         }
 
         // Soft delete

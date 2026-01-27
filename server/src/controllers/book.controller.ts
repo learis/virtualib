@@ -111,9 +111,18 @@ export const createBook = async (req: Request, res: Response) => {
         const { category_ids, ...bookData } = validation.data;
 
         // Determine Library ID
+        // Determine Library ID
         let targetLibraryId = user.library_id;
+
         if (isAdmin && req.body.library_id) {
             targetLibraryId = req.body.library_id;
+        }
+
+        // If not admin and no library_id assigned, try to find owned library
+        if (!isAdmin && !targetLibraryId) {
+            const ownedLib = await prisma.library.findFirst({ where: { owner_id: user.id } });
+            if (ownedLib) targetLibraryId = ownedLib.id;
+            else return res.status(400).json({ message: 'No library assigned to user' });
         }
 
         // AI Summary Generation
