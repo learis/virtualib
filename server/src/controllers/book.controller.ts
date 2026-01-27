@@ -136,8 +136,13 @@ export const getBookById = async (req: Request, res: Response) => {
         if (!book) return res.status(404).json({ message: 'Book not found' });
 
         // Access Control
-        if (!isAdmin && book.library_id !== user.library_id) {
-            return res.status(404).json({ message: 'Book not found' });
+        if (!isAdmin) {
+            const isOwner = book.library?.owner_id === user.id;
+            const isAssigned = user.libraries?.some((l: any) => l.id === book.library_id);
+
+            if (!isOwner && !isAssigned) {
+                return res.status(404).json({ message: 'Book not found' });
+            }
         }
 
         res.json(book);
@@ -161,17 +166,30 @@ export const createBook = async (req: Request, res: Response) => {
 
         // Determine Library ID
         // Determine Library ID
-        let targetLibraryId = user.library_id;
+        let targetLibraryId = req.body.library_id;
 
-        if (isAdmin && req.body.library_id) {
-            targetLibraryId = req.body.library_id;
-        }
+        if (!isAdmin) {
+            // Normalize: If not admin, they can't arbitralily pick unless they have access
+            // Logic:
+            // 1. If library_id provided, check access (owned or assigned)
+            // 2. If not provided, default to first owned or first assigned.
 
-        // If not admin and no library_id assigned, try to find owned library
-        if (!isAdmin && !targetLibraryId) {
             const ownedLib = await prisma.library.findFirst({ where: { owner_id: user.id } });
-            if (ownedLib) targetLibraryId = ownedLib.id;
-            else return res.status(400).json({ message: 'No library assigned to user' });
+            const assignedLib = user.libraries?.[0];
+
+            if (targetLibraryId) {
+                const isOwned = ownedLib?.id === targetLibraryId;
+                const isAssigned = user.libraries?.some((l: any) => l.id === targetLibraryId);
+                if (!isOwned && !isAssigned) {
+                    return res.status(403).json({ message: 'Forbidden: You do not have access to this library' });
+                }
+            } else {
+                // Default to Owned then Assigned
+                targetLibraryId = ownedLib?.id || assignedLib?.id;
+                if (!targetLibraryId) {
+                    return res.status(400).json({ message: 'No library assigned to user' });
+                }
+            }
         }
 
         // AI Summary Generation
