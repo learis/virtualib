@@ -49,25 +49,49 @@ export const getCategories = async (req: Request, res: Response) => {
                     return res.json([]);
                 }
             }
-        } else if (library_id) {
+        }
+    } else if (user.role?.role_name !== 'admin') {
+        // Normal User
+        const userWithLibs = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: { libraries: true }
+        });
+        const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+        if (assignedIds.length > 0) {
+            where.library_id = { in: assignedIds };
+        } else {
+            return res.json([]);
+        }
+        // Filter by specific library if requested
+        if (library_id) {
+            if (assignedIds.includes(library_id as string)) {
+                where.library_id = library_id as string;
+            } else {
+                return res.json([]);
+            }
+        }
+    } else {
+        // Admin
+        if (library_id) {
             where.library_id = library_id as string;
         }
-
-        const categories = await prisma.category.findMany({
-            where,
-            include: {
-                library: true,
-                _count: {
-                    select: { books: true }
-                }
-            },
-            orderBy: { name: 'asc' }
-        });
-        res.json(categories);
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        res.status(500).json({ message: 'Error fetching categories' });
     }
+
+    const categories = await prisma.category.findMany({
+        where,
+        include: {
+            library: true,
+            _count: {
+                select: { books: true }
+            }
+        },
+        orderBy: { name: 'asc' }
+    });
+    res.json(categories);
+} catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ message: 'Error fetching categories' });
+}
 };
 
 export const createCategory = async (req: Request, res: Response) => {

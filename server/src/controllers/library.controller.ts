@@ -149,6 +149,21 @@ export const getAllLibraries = async (req: Request, res: Response) => {
                 { owner_id: user.id },
                 { id: { in: assignedIds } }
             ];
+        } else if (user.role.role_name !== 'admin') {
+            // Normal User: Only assigned libraries
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            if (assignedIds.length > 0) {
+                where.id = { in: assignedIds };
+            } else {
+                // No libraries assigned - return empty or maybe public libraries?
+                // For now strict generic restriction
+                where.id = '00000000-0000-0000-0000-000000000000';
+            }
         }
 
         const libraries = await prisma.library.findMany({
