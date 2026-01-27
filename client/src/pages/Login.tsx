@@ -16,6 +16,10 @@ export const Login = () => {
         try {
             await login({ email, password });
             const user = useAuthStore.getState().user;
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+            // alert('Login success, Token: ' + token.substring(0, 10)); // Removed for production, uncomment for debug
+            set({ token, user, isAuthenticated: true, isLoading: false });
             if (user?.role === 'admin') {
                 navigate('/dashboard');
             } else {
