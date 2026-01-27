@@ -46,7 +46,10 @@ const seed = async () => {
                 email: 'admin@virtualib.com',
                 phone: '1234567890',
                 role_id: adminRole.id,
-                library_id: library.id,
+                // library_id: library.id,
+                libraries: {
+                    connect: [{ id: library.id }]
+                },
                 password_hash: adminPassword,
             },
         });
@@ -69,7 +72,11 @@ const seed = async () => {
                 email: 'librarian@demo.com',
                 phone: '5551234567',
                 role_id: librarianRole.id,
-                library_id: null, // Librarian owns libraries, doesn't belong to one initially
+                // library_id: null, 
+                // Librarian owns libraries, doesn't necessarily need to be assigned to one as a member in traditional sense, 
+                // but for our logic, if they operate solely on owned libraries, they don't need 'libraries' relation.
+                // If they need to see books in libraries they don't own, we add here.
+                // For now, let's keep it empty as they are owner.
                 password_hash: librarianPassword,
             },
         });

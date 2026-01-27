@@ -15,8 +15,33 @@ export const getRequests = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const isAdmin = user.role.role_name === 'admin';
 
-        const where: any = { library_id: user.library_id };
-        if (!isAdmin) {
+        // Get allowed libraries
+        const userWithLibs = await prisma.user.findUnique({
+            where: { id: user.id },
+            include: { libraries: true } // Assuming 'libraries' relation exists on User
+        });
+        const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+        // Add owned libraries if librarian
+        let allowedIds = [...assignedIds];
+        if (user.role.role_name === 'librarian') {
+            const owned = await prisma.library.findMany({ where: { owner_id: user.id }, select: { id: true } });
+            allowedIds = [...allowedIds, ...owned.map(l => l.id)];
+        }
+        allowedIds = [...new Set(allowedIds)];
+
+
+        const where: any = {};
+        if (allowedIds.length > 0) {
+            where.library_id = { in: allowedIds };
+        } else if (!isAdmin) {
+            // If not admin and no libraries, return empty
+            return res.json([]);
+        }
+
+        if (!isAdmin && user.role.role_name !== 'librarian') {
+            // Regular user sees only their own requests
+            // AND only from their libraries (already covered by where.library_id check technically if we want strict scoping)
             where.user_id = user.id;
         }
 
@@ -103,9 +128,12 @@ export const createRequest = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'You already requested this book' });
         }
 
+        const book = await prisma.book.findUnique({ where: { id: book_id } });
+        if (!book) return res.status(404).json({ message: 'Book not found' });
+
         const request = await prisma.borrowRequest.create({
             data: {
-                library_id: user.library_id,
+                library_id: book.library_id, // Use Book's Library ID
                 book_id,
                 user_id: user.id,
                 status: 'pending'
@@ -127,8 +155,19 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
         const { status } = validation.data;
 
         const request = await prisma.borrowRequest.findUnique({ where: { id } });
-        if (!request || request.library_id !== user.library_id) {
-            return res.status(404).json({ message: 'Request not found' });
+        if (!request) return res.status(404).json({ message: 'Request not found' });
+
+        // Access Check: User must manage this library
+        const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+        const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+        let allowedIds = [...assignedIds];
+        if (user.role.role_name === 'librarian') {
+            const owned = await prisma.library.findMany({ where: { owner_id: user.id }, select: { id: true } });
+            allowedIds = [...allowedIds, ...owned.map(l => l.id)];
+        }
+
+        if (!allowedIds.includes(request.library_id)) {
+            return res.status(403).json({ message: 'Forbidden' });
         }
 
         if (request.status !== 'pending') {

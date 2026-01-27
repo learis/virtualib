@@ -23,8 +23,35 @@ const updateSettingsSchema = z.object({
 export const getSettings = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user;
+        const role = user.role?.role_name;
+
+        let libraryId = null;
+
+        if (role === 'admin' || role === 'librarian') {
+            // For simplicity in this refactor, we default to the first owned library (librarian) or just first library (admin)
+            // In a real multi-tenancy app, we might need a 'current_context' library_id from headers.
+            // But let's look for settings for ANY of the user's libraries.
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            const firstLibIdx = userWithLibs?.libraries[0]?.id;
+
+            // If librarian owns libraries, check those too
+            if (role === 'librarian') {
+                const owned = await prisma.library.findFirst({ where: { owner_id: user.id } });
+                libraryId = owned?.id || firstLibIdx;
+            } else {
+                libraryId = firstLibIdx;
+            }
+        } else {
+            // Standard User
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            libraryId = userWithLibs?.libraries[0]?.id;
+        }
+
+
         const settings = await prisma.settings.findFirst({
-            where: { library_id: user.library_id }
+            where: {
+                library_id: libraryId ? libraryId : undefined
+            }
         });
 
         if (!settings) {
@@ -46,9 +73,25 @@ export const updateSettings = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Invalid input', errors: validation.error.issues });
         }
 
+        // Context Resolution: Which library settings to update?
+        // Assuming single-tenant context for now based on user's primary association.
+        // A robust solution would pass 'X-Library-ID' header or body param.
+        // For MVP refactor compatibility:
+        let libraryId = null;
+        if (user.role.role_name === 'librarian') {
+            const owned = await prisma.library.findFirst({ where: { owner_id: user.id } });
+            libraryId = owned?.id;
+        } else {
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            libraryId = userWithLibs?.libraries[0]?.id;
+        }
+
+        if (!libraryId) return res.status(400).json({ message: 'No library associated with user context' });
+
+
         // Check if settings exist for this library
         const existingSettings = await prisma.settings.findFirst({
-            where: { library_id: user.library_id }
+            where: { library_id: libraryId }
         });
 
         let settings;
@@ -59,10 +102,10 @@ export const updateSettings = async (req: Request, res: Response) => {
                 data: validation.data
             });
         } else {
-            console.log('Creating new settings for Library:', user.library_id);
+            console.log('Creating new settings for Library:', libraryId);
             settings = await prisma.settings.create({
                 data: {
-                    library_id: user.library_id,
+                    library_id: libraryId,
                     ...validation.data
                 }
             });

@@ -14,7 +14,7 @@ export const login = async (req: Request, res: Response) => {
 
         const user = await prisma.user.findUnique({
             where: { email },
-            include: { role: true, library: true },
+            include: { role: true, libraries: true },
         });
 
         if (!user || !user.is_active) {
@@ -26,8 +26,7 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Role-based check: Admins are superadmins, but they still technically belong to a library in DB schema.
-        // Spec says: "Admins... Act as super admins across all libraries".
+        // Role-based check: Admins are superadmins
         // We'll return the role and library info.
 
         const token = generateToken({ userId: user.id, role: user.role.role_name });
@@ -39,8 +38,9 @@ export const login = async (req: Request, res: Response) => {
                 name: user.name,
                 email: user.email,
                 role: user.role.role_name,
-                library_id: user.library_id,
-                library_name: user.library?.name || 'Managed Library',
+                // library_id: user.library_id, // Deprecated
+                // library_name: user.library?.name || 'Managed Library', // Deprecated
+                libraries: user.libraries.map(l => ({ id: l.id, name: l.name }))
             },
         });
     } catch (error) {

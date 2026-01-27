@@ -32,10 +32,12 @@ export const getLoans = async (req: Request, res: Response) => {
             };
         } else {
             // Normal User
+            // Show loans where user_id matches
+            // And if needed, filter by assigned libraries? usually user just sees their own loans
             where = {
                 ...where,
                 user_id: user.id,
-                library_id: user.library_id
+                // library_id: user.library_id // Deprecated
             };
         }
 
@@ -66,7 +68,14 @@ export const createLoan = async (req: Request, res: Response) => {
         // Verify Book belongs to a library the Librarian owns (if Librarian)
         if (user.role.role_name === 'librarian') {
             const book = await prisma.book.findUnique({ where: { id: book_id }, include: { library: true } });
-            if (book?.library?.owner_id !== user.id) {
+            // Or assigned
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const isOwner = book?.library?.owner_id === user.id;
+            const isAssigned = book && assignedIds.includes(book.library_id);
+
+            if (!isOwner && !isAssigned) {
                 return res.status(403).json({ message: 'Forbidden' });
             }
         }
@@ -84,16 +93,12 @@ export const createLoan = async (req: Request, res: Response) => {
         }
 
         // Determine library_id for the loan
-        // If user is User, use their library_id.
-        // If Librarian creating loan, use Book's library_id? 
-        // Loan model requires library_id.
-        // We should fetch book's library_id to be safe.
         const book = await prisma.book.findUnique({ where: { id: book_id } });
         if (!book) return res.status(404).json({ message: 'Book not found' });
 
         const loan = await prisma.bookLoan.create({
             data: {
-                library_id: book.library_id, // Use Book's library since User might not have one (if managed by Librarian?) actually User must have one basically.
+                library_id: book.library_id,
                 book_id,
                 user_id,
                 due_at: due_date,
@@ -148,7 +153,13 @@ export const approveReturn = async (req: Request, res: Response) => {
 
         // Multi-tenancy check
         if (role === 'librarian') {
-            if (loan.book.library.owner_id !== user.id) {
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const isOwner = loan.book.library.owner_id === user.id;
+            const isAssigned = assignedIds.includes(loan.book.library_id);
+
+            if (!isOwner && !isAssigned) {
                 return res.status(403).json({ message: 'Forbidden' });
             }
         }
@@ -184,7 +195,13 @@ export const rejectReturn = async (req: Request, res: Response) => {
 
         // Multi-tenancy check
         if (role === 'librarian') {
-            if (loan.book.library.owner_id !== user.id) {
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const isOwner = loan.book.library.owner_id === user.id;
+            const isAssigned = assignedIds.includes(loan.book.library_id);
+
+            if (!isOwner && !isAssigned) {
                 return res.status(403).json({ message: 'Forbidden' });
             }
         }
@@ -211,9 +228,10 @@ export const cancelReturnRequest = async (req: Request, res: Response) => {
         const user = (req as any).user;
 
         const loan = await prisma.bookLoan.findUnique({ where: { id } });
-        if (!loan || loan.library_id !== user.library_id) {
+        if (!loan) {
             return res.status(404).json({ message: 'Loan not found' });
         }
+        // if (loan.library_id !== user.library_id) // Removed deprecated check
 
         if (loan.user_id !== user.id) {
             return res.status(403).json({ message: 'Unauthorized' });

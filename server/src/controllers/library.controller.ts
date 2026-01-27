@@ -61,10 +61,16 @@ export const getLibrary = async (req: Request, res: Response) => {
 
         // Ownership / Membership check
         const isOwner = library.owner_id === user.id;
-        const isMember = user.role.role_name === 'librarian' && user.library_id === library.id;
+        // const isMember = user.role.role_name === 'librarian' && user.library_id === library.id; // Deprecated check
 
-        if (user.role.role_name === 'librarian' && !isOwner && !isMember) {
-            return res.status(403).json({ message: 'Forbidden: You do not have access to this library' });
+        if (user.role.role_name === 'librarian' && !isOwner) {
+            // Check if assigned
+            const userWithLibs = await prisma.user.findUnique({ where: { id: user.id }, include: { libraries: true } });
+            const isAssigned = userWithLibs?.libraries.some(l => l.id === library.id);
+
+            if (!isAssigned) {
+                return res.status(403).json({ message: 'Forbidden: You do not have access to this library' });
+            }
         }
 
         res.json(library);
@@ -84,9 +90,11 @@ export const updateLibrary = async (req: Request, res: Response) => {
         if (!existing) return res.status(404).json({ message: 'Library not found' });
 
         const isOwner = existing.owner_id === user.id;
-        const isMember = user.role.role_name === 'librarian' && user.library_id === existing.id;
 
-        if (user.role.role_name === 'librarian' && !isOwner && !isMember) {
+        if (user.role.role_name === 'librarian' && !isOwner) {
+            // Assuming only owner can update library details for now. Use to be isMember || isOwner.
+            // If assigned librarian needs to update, we can add isAssigned check.
+            // Let's assume strict ownership for updates for safety.
             return res.status(403).json({ message: 'Forbidden' });
         }
 
@@ -131,12 +139,16 @@ export const getAllLibraries = async (req: Request, res: Response) => {
 
         // Librarian Filter: Owner OR Member
         if (user.role.role_name === 'librarian') {
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: true }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
             where.OR = [
                 { owner_id: user.id },
-                { id: user.library_id }
+                { id: { in: assignedIds } }
             ];
-            // Prune nulls from OR if any (though id/owner_id are strings)
-            // If user.library_id is null, it might match nothing, which is fine.
         }
 
         const libraries = await prisma.library.findMany({
