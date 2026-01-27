@@ -99,10 +99,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
         }
     };
 
-    const handleLibraryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-        setFormData({ ...formData, library_ids: selectedOptions });
-    };
+
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -190,20 +187,49 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">
-                                Libraries <span className="text-xs text-gray-500 font-normal">(Hold Cmd/Ctrl to select multiple)</span>
+                            <label className="block text-sm font-medium mb-3">
+                                Libraries <span className="text-xs text-gray-400 font-normal ml-1">Select one or more</span>
                             </label>
-                            <select
-                                multiple
-                                required
-                                className="input min-h-[100px]"
-                                value={formData.library_ids}
-                                onChange={handleLibraryChange}
-                            >
-                                {libraries.map(lib => (
-                                    <option key={lib.id} value={lib.id}>{lib.name}</option>
-                                ))}
-                            </select>
+
+                            {libraries.length > 0 ? (
+                                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100 max-h-[150px] overflow-y-auto">
+                                    {libraries.map(lib => (
+                                        <label key={lib.id} className={`
+                                                cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all select-none flex items-center gap-2
+                                                ${formData.library_ids.includes(lib.id)
+                                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300'
+                                            }
+                                            `}>
+                                            <input
+                                                type="checkbox"
+                                                className="hidden"
+                                                checked={formData.library_ids.includes(lib.id)}
+                                                onChange={(e) => {
+                                                    const id = lib.id;
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        library_ids: e.target.checked
+                                                            ? [...prev.library_ids, id]
+                                                            : prev.library_ids.filter(lid => lid !== id)
+                                                    }));
+                                                }}
+                                            />
+                                            {/* Optional: Add checks/icons if active */}
+                                            {formData.library_ids.includes(lib.id) && (
+                                                <span className="bg-white/20 rounded-full p-0.5">
+                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                                    </svg>
+                                                </span>
+                                            )}
+                                            {lib.name}
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-sm text-gray-400 italic p-2">No libraries available.</div>
+                            )}
                         </div>
                     </div>
 
