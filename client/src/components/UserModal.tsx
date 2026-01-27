@@ -160,18 +160,17 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Phone</label>
-                        <input
-                            type="tel"
-                            required
-                            className="input"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Phone</label>
+                            <input
+                                type="tel"
+                                required
+                                className="input"
+                                value={formData.phone}
+                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            />
+                        </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Role</label>
                             <select
@@ -186,51 +185,51 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                                 ))}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-3">
-                                Libraries <span className="text-xs text-gray-400 font-normal ml-1">Select one or more</span>
-                            </label>
+                    </div>
 
-                            {libraries.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100 max-h-[150px] overflow-y-auto">
-                                    {libraries.map(lib => (
-                                        <label key={lib.id} className={`
-                                                cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all select-none flex items-center gap-2
-                                                ${formData.library_ids.includes(lib.id)
-                                                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300'
-                                            }
-                                            `}>
-                                            <input
-                                                type="checkbox"
-                                                className="hidden"
-                                                checked={formData.library_ids.includes(lib.id)}
-                                                onChange={(e) => {
-                                                    const id = lib.id;
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        library_ids: e.target.checked
-                                                            ? [...prev.library_ids, id]
-                                                            : prev.library_ids.filter(lid => lid !== id)
-                                                    }));
-                                                }}
-                                            />
-                                            {/* Optional: Add checks/icons if active */}
-                                            {formData.library_ids.includes(lib.id) && (
-                                                <span className="bg-white/20 rounded-full p-0.5">
-                                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                        <polyline points="20 6 9 17 4 12"></polyline>
-                                                    </svg>
-                                                </span>
-                                            )}
-                                            {lib.name}
-                                        </label>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-sm text-gray-400 italic p-2">No libraries available.</div>
-                            )}
-                        </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-3">
+                            Libraries <span className="text-xs text-gray-400 font-normal ml-1">Select one or more</span>
+                        </label>
+
+                        {libraries.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {libraries.map(lib => (
+                                    <label key={lib.id} className={`
+                                            cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all select-none flex items-center gap-2 border
+                                            ${formData.library_ids.includes(lib.id)
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                        }
+                                        `}>
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={formData.library_ids.includes(lib.id)}
+                                            onChange={(e) => {
+                                                const id = lib.id;
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    library_ids: e.target.checked
+                                                        ? [...prev.library_ids, id]
+                                                        : prev.library_ids.filter(lid => lid !== id)
+                                                }));
+                                            }}
+                                        />
+                                        {formData.library_ids.includes(lib.id) && (
+                                            <span className="bg-white/20 rounded-full p-0.5">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            </span>
+                                        )}
+                                        {lib.name}
+                                    </label>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-gray-400 italic">No libraries available.</div>
+                        )}
                     </div>
 
 
