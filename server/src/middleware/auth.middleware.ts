@@ -13,7 +13,10 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         const decoded = verifyToken(token) as { userId: string };
         const user = await prisma.user.findUnique({
             where: { id: decoded.userId },
-            include: { role: true },
+            include: {
+                role: true,
+                libraries: true
+            },
         });
 
         if (!user || !user.is_active) {

@@ -24,19 +24,10 @@ function canManageBook(user: any, book: any): boolean {
     if (user.role?.role_name === 'admin') return true;
     if (user.role?.role_name === 'librarian') {
         const isOwner = book.library?.owner_id === user.id;
-        // Check if book's library is in user's assigned libraries (Need robust way, assuming user object has libraries populated often)
-        // But here 'user' usually comes from req.user which might not have deep population depending on middleware.
-        // Ideally we should rely on DB check if not sure.
-        // For now, let's assume 'assigned' means being in the libraries list.
-        // Since we removed 'library_id' from user, we can't check scalar.
-        // If 'libraries' array exists on user (populated), check it.
-        if (user.libraries?.some((lib: any) => lib.id === book.library_id)) return true;
+        // Check if assigned
+        const isAssigned = user.libraries?.some((lib: any) => lib.id === book.library_id);
 
-        // If not populated, we might be risky returning false.
-        // But for safe side, assume 'isOwner' covers most management.
-        // If assigned librarian needs to manage, 'user.libraries' MUST be populated.
-        // We will ensure 'getUsers' and 'getUserById' populate it. Auth middleware needs update ideally.
-        return isOwner;
+        return isOwner || !!isAssigned;
     }
     return false;
 }
@@ -44,7 +35,6 @@ function canManageBook(user: any, book: any): boolean {
 export const getBooks = async (req: Request, res: Response) => {
     try {
         const user = (req as any).user;
-        if (!user || !user.library_id) return res.status(401).json({ message: 'Unauthorized' });
         if (!user || !user.id) return res.status(401).json({ message: 'Unauthorized' });
 
         const isAdmin = user.role?.role_name === 'admin';

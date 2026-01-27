@@ -6,25 +6,42 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const role = user.role.role_name;
 
+        const user = (req as any).user;
+        const role = user.role.role_name;
+
         // Determine Filter Context
         let whereLibrary: any = {};
+        let libraryCountQuery: any = {};
+
+        // Get allowed library IDs (Owned + Assigned)
+        let allowedIds: string[] = [];
 
         if (role === 'admin') {
-            // Admin sees all, no filter
+            // Admin sees all
             whereLibrary = {};
-        } else if (role === 'librarian') {
-            // Librarian sees data for libraries they own
-            whereLibrary = { library: { owner_id: user.id } };
+            libraryCountQuery = {};
         } else {
-            // User sees data for their library only
-            whereLibrary = { library_id: user.library_id };
-        }
+            // For Librarians: Owned libraries
+            const owned = await prisma.library.findMany({ where: { owner_id: user.id }, select: { id: true } });
+            const ownedIds = owned.map(l => l.id);
 
-        // Special case for Library Count
-        // Admin: All
-        // Librarian: Owned
-        // User: 1 (Their own)
-        const libraryCountQuery = role === 'admin' ? {} : (role === 'librarian' ? { owner_id: user.id } : { id: user.library_id });
+            // For Librarians & Users: Assigned libraries
+            // user.libraries is now populated by auth middleware
+            const assignedIds = user.libraries?.map((l: any) => l.id) || [];
+
+            allowedIds = [...new Set([...ownedIds, ...assignedIds])];
+
+            if (allowedIds.length > 0) {
+                whereLibrary = { library_id: { in: allowedIds } };
+                libraryCountQuery = { id: { in: allowedIds } };
+            } else {
+                // No access to any library
+                // Return empty stats immediately or ensure queries return 0
+                // Setting a condition that matches nothing
+                whereLibrary = { id: '00000000-0000-0000-0000-000000000000' };
+                libraryCountQuery = { id: '00000000-0000-0000-0000-000000000000' };
+            }
+        }
 
         // Run queries in parallel for performance
         const [
