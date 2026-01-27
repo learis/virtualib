@@ -348,7 +348,7 @@ export const Books = () => {
                                                             >
                                                                 View
                                                             </button>
-                                                            {isAdmin && (
+                                                            {canManage && (
                                                                 <>
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); handleEditClick(book); }}

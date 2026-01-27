@@ -23,12 +23,21 @@ export const getUsers = async (req: Request, res: Response) => {
 
         // Librarian Filter
         if (role === 'librarian') {
-            // Filter by the librarian's assigned library OR ownership
-            if (user.library_id) {
-                where.library_id = user.library_id;
+            // Exclude admins
+            where.role = { role_name: { not: 'admin' } };
+
+            // Filter by assigned library OR owned libraries
+            const ownedLibs = await prisma.library.findMany({
+                where: { owner_id: user.id },
+                select: { id: true }
+            });
+            const allowedIds = ownedLibs.map(l => l.id);
+            if (user.library_id) allowedIds.push(user.library_id);
+
+            if (allowedIds.length > 0) {
+                where.library_id = { in: allowedIds };
             } else {
-                // Fallback to ownership if no library_id assigned (legacy/edge case)
-                where.library = { owner_id: user.id };
+                where.library_id = '00000000-0000-0000-0000-000000000000'; // Return none effectively
             }
         }
 

@@ -16,15 +16,28 @@ export const getCategories = async (req: Request, res: Response) => {
 
         const where: any = {};
 
-        // If Librarian, force filter by their library
+        // If Librarian, filter by ALL their libraries (assigned + owned)
         if (role === 'librarian') {
-            if (user.library_id) {
-                where.library_id = user.library_id;
+            const ownedLibs = await prisma.library.findMany({
+                where: { owner_id: user.id },
+                select: { id: true }
+            });
+
+            const allowedIds = ownedLibs.map(l => l.id);
+            if (user.library_id) allowedIds.push(user.library_id);
+
+            // If specific library requested, ensure it's allowed
+            if (library_id) {
+                if (!allowedIds.includes(library_id as string)) {
+                    return res.json([]);
+                }
+                where.library_id = library_id;
             } else {
-                // Check if they own any library if none assigned (fallback)
-                const ownedLib = await prisma.library.findFirst({ where: { owner_id: user.id } });
-                if (ownedLib) where.library_id = ownedLib.id;
-                else return res.json([]);
+                if (allowedIds.length > 0) {
+                    where.library_id = { in: allowedIds };
+                } else {
+                    return res.json([]);
+                }
             }
         } else if (library_id) {
             where.library_id = library_id as string;
