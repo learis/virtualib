@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Check, X, Clock, BookOpen, AlertCircle, ArrowLeftRight, Search, Filter, Calendar, RefreshCcw, XCircle } from 'lucide-react';
-import { getRequests, updateRequestStatus, approveReturn, rejectReturn, type UnifiedRequest } from '../services/loanService';
+import { getRequests, updateRequestStatus, approveReturn, rejectReturn, cancelRequest, type UnifiedRequest } from '../services/loanService';
 import { useAuthStore } from '../store/authStore';
 
 export const Requests = () => {
     const [requests, setRequests] = useState<UnifiedRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const user = useAuthStore(state => state.user);
-    const isAdmin = user?.role === 'admin';
+    const isManager = user?.role === 'admin' || user?.role === 'librarian';
     const [selectedRequest, setSelectedRequest] = useState<UnifiedRequest | null>(null);
 
     // Filter & Search State
@@ -55,8 +55,19 @@ export const Requests = () => {
         try {
             await rejectReturn(id);
             setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'return_rejected' as any } : r));
-        } catch (error) {
-            alert('Failed to reject return');
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Failed to reject return');
+        }
+    };
+
+    const handleCancelRequest = async (id: string) => {
+        if (!confirm('Are you sure you want to cancel this request?')) return;
+        try {
+            await cancelRequest(id);
+            setRequests(prev => prev.filter(r => r.id !== id));
+            setSelectedRequest(null);
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Failed to cancel request');
         }
     };
 
@@ -292,7 +303,7 @@ export const Requests = () => {
                             </span>
 
                             {/* Actions stopPropagation to prevent modal open */}
-                            {isAdmin && (
+                            {isManager && (
                                 <div className="flex items-center gap-2 ml-4 border-l pl-4" onClick={(e) => e.stopPropagation()}>
                                     {req.type === 'borrow' && req.status === 'pending' && (
                                         <>
@@ -332,177 +343,205 @@ export const Requests = () => {
                                     )}
                                 </div>
                             )}
+
+                            {/* User Cancel Button */}
+                            {!isManager && req.type === 'borrow' && req.status === 'pending' && req.user.id === user?.id && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCancelRequest(req.id);
+                                    }}
+                                    className="ml-4 px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 text-xs font-bold transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 border-t border-gray-100 pt-6">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span>Show:</span>
-                        <select
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(Number(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value={10}>10</option>
-                            <option value={20}>20</option>
-                            <option value={50}>50</option>
-                        </select>
-                        <span>per page</span>
-                    </div>
+            {
+                totalPages > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 border-t border-gray-100 pt-6">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span>Show:</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </select>
+                            <span>per page</span>
+                        </div>
 
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handlePageChange(1)}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium hidden sm:block"
-                        >
-                            First
-                        </button>
-                        <button
-                            onClick={() => handlePageChange(currentPage - 1)}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium"
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-gray-600 font-medium">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                            onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium"
-                        >
-                            Next
-                        </button>
-                        <button
-                            onClick={() => handlePageChange(totalPages)}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium hidden sm:block"
-                        >
-                            Last
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Request Detail Modal */}
-            {selectedRequest && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-                    onClick={() => setSelectedRequest(null)}
-                >
-                    <div
-                        className="bg-white rounded-xl w-full max-w-lg shadow-2xl overflow-hidden"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                            <div className="flex items-center gap-3">
-                                <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-sm text-white
-                                    ${selectedRequest.type === 'borrow' ? 'bg-blue-600' : 'bg-orange-500'}`}>
-                                    {selectedRequest.type === 'borrow' ? <BookOpen size={20} /> : <ArrowLeftRight size={20} />}
-                                </div>
-                                <div>
-                                    <h2 className="font-bold text-gray-900 leading-tight">{selectedRequest.book.name}</h2>
-                                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">{selectedRequest.type === 'borrow' ? 'Borrow Request' : 'Return Request'}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setSelectedRequest(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-                                <X size={20} className="text-gray-400" />
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handlePageChange(1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium hidden sm:block"
+                            >
+                                First
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm text-gray-600 font-medium">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium"
+                            >
+                                Next
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50 text-sm font-medium hidden sm:block"
+                            >
+                                Last
                             </button>
                         </div>
+                    </div>
+                )
+            }
 
-                        <div className="p-6 space-y-6">
-                            {/* User Info */}
-                            <div className={`flex items-start gap-4 p-4 rounded-lg border
-                                ${selectedRequest.type === 'borrow' ? 'bg-blue-50/50 border-blue-100' : 'bg-orange-50/50 border-orange-100'}`}>
-                                <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold shrink-0
-                                    ${selectedRequest.type === 'borrow' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
-                                    {selectedRequest?.user?.name?.[0] || '?'}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-gray-900">{selectedRequest.user ? `${selectedRequest.user.name} ${selectedRequest.user.surname}` : 'Unknown User'}</p>
-                                    <p className="text-xs text-gray-500 font-medium">{selectedRequest.user?.email || 'No email'}</p>
-                                </div>
-                            </div>
-
-                            {/* Request Meta */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 bg-gray-50 rounded border border-gray-100">
-                                    <label className="text-xs font-semibold text-gray-500 uppercase">Date</label>
-                                    <p className="text-sm font-medium text-gray-900 mt-1">
-                                        {formatDateTime(selectedRequest.date)}
-                                    </p>
-                                </div>
-                                <div className="p-3 bg-gray-50 rounded border border-gray-100">
-                                    <label className="text-xs font-semibold text-gray-500 uppercase">Status</label>
-                                    <div className="mt-1">
-                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase border ${getStatusStyle(selectedRequest.status)}`}>
-                                            {getStatusLabel(selectedRequest.status)}
-                                        </span>
+            {/* Request Detail Modal */}
+            {
+                selectedRequest && (
+                    <div
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+                        onClick={() => setSelectedRequest(null)}
+                    >
+                        <div
+                            className="bg-white rounded-xl w-full max-w-lg shadow-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                                <div className="flex items-center gap-3">
+                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center shadow-sm text-white
+                                    ${selectedRequest.type === 'borrow' ? 'bg-blue-600' : 'bg-orange-500'}`}>
+                                        {selectedRequest.type === 'borrow' ? <BookOpen size={20} /> : <ArrowLeftRight size={20} />}
+                                    </div>
+                                    <div>
+                                        <h2 className="font-bold text-gray-900 leading-tight">{selectedRequest.book.name}</h2>
+                                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">{selectedRequest.type === 'borrow' ? 'Borrow Request' : 'Return Request'}</p>
                                     </div>
                                 </div>
+                                <button onClick={() => setSelectedRequest(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                                    <X size={20} className="text-gray-400" />
+                                </button>
                             </div>
 
-                            {isAdmin && (
-                                <div className="pt-4 border-t border-gray-100 flex gap-3">
-                                    {selectedRequest.type === 'borrow' && selectedRequest.status === 'pending' && (
-                                        <>
-                                            <button
-                                                onClick={() => {
-                                                    handleStatusUpdate(selectedRequest.id, 'rejected');
-                                                    setSelectedRequest(null);
-                                                }}
-                                                className="flex-1 py-2.5 border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors"
-                                            >
-                                                Reject
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    handleStatusUpdate(selectedRequest.id, 'approved');
-                                                    setSelectedRequest(null);
-                                                }}
-                                                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                                            >
-                                                Approve Loan
-                                            </button>
-                                        </>
-                                    )}
-                                    {selectedRequest.type === 'return' && selectedRequest.status === 'return_requested' && (
-                                        <>
-                                            <button
-                                                onClick={() => {
-                                                    handleReturnReject(selectedRequest.id);
-                                                    setSelectedRequest(null);
-                                                }}
-                                                className="flex-1 py-2.5 border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors"
-                                            >
-                                                Reject Return
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    handleReturnApprove(selectedRequest.id);
-                                                    setSelectedRequest(null);
-                                                }}
-                                                className="flex-1 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                                            >
-                                                Confirm Book Return
-                                            </button>
-                                        </>
-                                    )}
+                            <div className="p-6 space-y-6">
+                                {/* User Info */}
+                                <div className={`flex items-start gap-4 p-4 rounded-lg border
+                                ${selectedRequest.type === 'borrow' ? 'bg-blue-50/50 border-blue-100' : 'bg-orange-50/50 border-orange-100'}`}>
+                                    <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold shrink-0
+                                    ${selectedRequest.type === 'borrow' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                                        {selectedRequest?.user?.name?.[0] || '?'}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900">{selectedRequest.user ? `${selectedRequest.user.name} ${selectedRequest.user.surname}` : 'Unknown User'}</p>
+                                        <p className="text-xs text-gray-500 font-medium">{selectedRequest.user?.email || 'No email'}</p>
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* Request Meta */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-3 bg-gray-50 rounded border border-gray-100">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase">Date</label>
+                                        <p className="text-sm font-medium text-gray-900 mt-1">
+                                            {formatDateTime(selectedRequest.date)}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-gray-50 rounded border border-gray-100">
+                                        <label className="text-xs font-semibold text-gray-500 uppercase">Status</label>
+                                        <div className="mt-1">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold uppercase border ${getStatusStyle(selectedRequest.status)}`}>
+                                                {getStatusLabel(selectedRequest.status)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {isManager && (
+                                    <div className="pt-4 border-t border-gray-100 flex gap-3">
+                                        {selectedRequest.type === 'borrow' && selectedRequest.status === 'pending' && (
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        handleStatusUpdate(selectedRequest.id, 'rejected');
+                                                        setSelectedRequest(null);
+                                                    }}
+                                                    className="flex-1 py-2.5 border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors"
+                                                >
+                                                    Reject
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleStatusUpdate(selectedRequest.id, 'approved');
+                                                        setSelectedRequest(null);
+                                                    }}
+                                                    className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                                                >
+                                                    Approve Loan
+                                                </button>
+                                            </>
+                                        )}
+                                        {selectedRequest.type === 'return' && selectedRequest.status === 'return_requested' && (
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        handleReturnReject(selectedRequest.id);
+                                                        setSelectedRequest(null);
+                                                    }}
+                                                    className="flex-1 py-2.5 border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors"
+                                                >
+                                                    Reject Return
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        handleReturnApprove(selectedRequest.id);
+                                                        setSelectedRequest(null);
+                                                    }}
+                                                    className="flex-1 py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                                                >
+                                                    Confirm Book Return
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {!isManager && selectedRequest.type === 'borrow' && selectedRequest.status === 'pending' && selectedRequest.user.id === user?.id && (
+                                    <div className="pt-4 border-t border-gray-100">
+                                        <button
+                                            onClick={() => handleCancelRequest(selectedRequest.id)}
+                                            className="w-full py-2.5 border border-red-200 text-red-600 font-medium rounded-lg hover:bg-red-50 transition-colors"
+                                        >
+                                            Cancel Request
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };

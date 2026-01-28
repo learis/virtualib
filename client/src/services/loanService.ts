@@ -77,3 +77,9 @@ export const updateRequestStatus = async (requestId: string, status: 'approved' 
     const response = await api.put(`/requests/${requestId}`, { status });
     return response.data;
 };
+
+export const cancelRequest = async (requestId: string) => {
+    const response = await api.delete(`/requests/${requestId}`);
+    return response.data;
+};
+

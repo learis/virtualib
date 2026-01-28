@@ -166,8 +166,13 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
             allowedIds = [...allowedIds, ...owned.map(l => l.id)];
         }
 
-        if (!allowedIds.includes(request.library_id)) {
-            return res.status(403).json({ message: 'Forbidden' });
+        const isAdmin = user.role.role_name === 'admin';
+
+        if (!isAdmin) {
+            // Only check library ownership if NOT admin
+            if (!allowedIds.includes(request.library_id)) {
+                return res.status(403).json({ message: 'Forbidden' });
+            }
         }
 
         if (request.status !== 'pending') {
@@ -215,5 +220,32 @@ export const updateRequestStatus = async (req: Request, res: Response) => {
         res.json(updatedRequest);
     } catch (error: any) {
         res.status(500).json({ message: error.message || 'Failed to update request' });
+    }
+};
+
+export const deleteRequest = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params as { id: string };
+        const user = (req as any).user;
+
+        const request = await prisma.borrowRequest.findUnique({ where: { id } });
+        if (!request) return res.status(404).json({ message: 'Request not found' });
+
+        // Only allow user to delete their OWN request
+        if (request.user_id !== user.id) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        // Only allow deleting PENDING requests
+        if (request.status !== 'pending') {
+            return res.status(400).json({ message: 'Cannot cancel a processed request' });
+        }
+
+        await prisma.borrowRequest.delete({ where: { id } });
+
+        res.json({ message: 'Request cancelled successfully' });
+    } catch (error) {
+        console.error('Delete request error:', error);
+        res.status(500).json({ message: 'Failed to cancel request' });
     }
 };
