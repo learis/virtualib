@@ -66,6 +66,7 @@ export interface UnifiedRequest {
     status: 'pending' | 'approved' | 'rejected' | 'return_requested' | 'returned' | 'return_rejected' | 'cancelled';
     date: string; // Unified date field
     requested_at?: string; // Legacy optional
+    decided_at?: string | null;
 }
 
 export const getRequests = async () => {

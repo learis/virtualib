@@ -79,7 +79,8 @@ export const getRequests = async (req: Request, res: Response) => {
                 book: r.book,
                 user: r.user,
                 status: r.status,
-                date: r.requested_at
+                date: r.requested_at,
+                decided_at: r.decided_at
             })),
             ...returnRequests.map(r => ({
                 id: r.id,
@@ -244,7 +245,10 @@ export const deleteRequest = async (req: Request, res: Response) => {
         // Soft delete: Update status to 'cancelled'
         await prisma.borrowRequest.update({
             where: { id },
-            data: { status: 'cancelled' }
+            data: {
+                status: 'cancelled',
+                decided_at: new Date()
+            }
         });
 
         res.json({ message: 'Request cancelled successfully', id });

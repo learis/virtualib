@@ -291,6 +291,12 @@ export const Requests = () => {
                                     <span>{req.user ? `${req.user.name} ${req.user.surname}` : 'Unknown User'}</span>
                                     <span>•</span>
                                     <span>{formatDateTime(req.date)}</span>
+                                    {req.status === 'cancelled' && req.decided_at && (
+                                        <>
+                                            <span>•</span>
+                                            <span className="text-red-400">Cancelled: {formatDateTime(req.decided_at)}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -470,6 +476,11 @@ export const Requests = () => {
                                         <label className="text-xs font-semibold text-gray-500 uppercase">Date</label>
                                         <p className="text-sm font-medium text-gray-900 mt-1">
                                             {formatDateTime(selectedRequest.date)}
+                                            {selectedRequest.status === 'cancelled' && selectedRequest.decided_at && (
+                                                <span className="block text-red-500 text-xs mt-1">
+                                                    Cancelled: {formatDateTime(selectedRequest.decided_at)}
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
                                     <div className="p-3 bg-gray-50 rounded border border-gray-100">
