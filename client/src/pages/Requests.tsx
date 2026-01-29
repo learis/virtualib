@@ -64,7 +64,8 @@ export const Requests = () => {
         if (!confirm('Are you sure you want to cancel this request?')) return;
         try {
             await cancelRequest(id);
-            setRequests(prev => prev.filter(r => r.id !== id));
+            // Instead of filtering out, update status to 'cancelled'
+            setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'cancelled' as any } : r));
             setSelectedRequest(null);
         } catch (error: any) {
             alert(error.response?.data?.message || 'Failed to cancel request');
@@ -84,6 +85,7 @@ export const Requests = () => {
             case 'pending': return 'bg-orange-100 text-orange-800 border-orange-200';
             case 'return_requested': return 'bg-orange-100 text-orange-800 border-orange-200';
             case 'return_rejected': return 'bg-red-100 text-red-800 border-red-200';
+            case 'cancelled': return 'bg-gray-100 text-gray-400 border-gray-200 line-through';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };
@@ -128,6 +130,7 @@ export const Requests = () => {
                 if (filterStatus === 'returned' && req.status !== 'returned') return false;
                 if (filterStatus === 'rejected' && req.status !== 'rejected') return false;
                 if (filterStatus === 'return_rejected' && req.status !== 'return_rejected') return false;
+                if (filterStatus === 'cancelled' && req.status !== 'cancelled') return false;
             }
 
             // Date Filter
@@ -231,6 +234,7 @@ export const Requests = () => {
                             <option value="returned">Returned</option>
                             <option value="rejected">Rejected</option>
                             <option value="return_rejected">Return Rejected</option>
+                            <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
 

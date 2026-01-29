@@ -63,7 +63,7 @@ export interface UnifiedRequest {
     type: 'borrow' | 'return';
     book: Book;
     user: RequestUser;
-    status: 'pending' | 'approved' | 'rejected' | 'return_requested' | 'returned' | 'return_rejected';
+    status: 'pending' | 'approved' | 'rejected' | 'return_requested' | 'returned' | 'return_rejected' | 'cancelled';
     date: string; // Unified date field
     requested_at?: string; // Legacy optional
 }

@@ -116,7 +116,7 @@ export const createRequest = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Book is currently unavailable (on loan)' });
         }
 
-        // Check for existing pending request
+        // Check for existing pending request (ignore cancelled ones)
         const existingRequest = await prisma.borrowRequest.findFirst({
             where: {
                 book_id,
@@ -241,9 +241,13 @@ export const deleteRequest = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Cannot cancel a processed request' });
         }
 
-        await prisma.borrowRequest.delete({ where: { id } });
+        // Soft delete: Update status to 'cancelled'
+        await prisma.borrowRequest.update({
+            where: { id },
+            data: { status: 'cancelled' }
+        });
 
-        res.json({ message: 'Request cancelled successfully' });
+        res.json({ message: 'Request cancelled successfully', id });
     } catch (error) {
         console.error('Delete request error:', error);
         res.status(500).json({ message: 'Failed to cancel request' });
