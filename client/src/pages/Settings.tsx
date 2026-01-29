@@ -307,7 +307,9 @@ export const Settings = () => {
                                         alert('Test email sent successfully! Check your inbox.');
                                     } catch (error: any) {
                                         console.error(error);
-                                        alert(error.response?.data?.message || 'Failed to send test email');
+                                        const errMsg = error.response?.data?.message || 'Failed to send test email';
+                                        const errDetail = error.response?.data?.error ? `\nDetails: ${error.response.data.error}` : '';
+                                        alert(errMsg + errDetail);
                                     } finally {
                                         btn.innerText = originalText;
                                         btn.disabled = false;

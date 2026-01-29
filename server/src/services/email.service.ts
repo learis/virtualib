@@ -145,6 +145,9 @@ export const sendTestEmailDirect = async (config: {
                 user: config.user,
                 pass: config.pass,
             },
+            tls: {
+                rejectUnauthorized: false
+            }
         });
 
         await transporter.verify();
@@ -158,7 +161,7 @@ export const sendTestEmailDirect = async (config: {
 
         return { success: true };
     } catch (error: any) {
-        console.error('Test email failed:', error);
-        return { success: false, error: error.message };
+        console.error('Test email failed DETAILED:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        return { success: false, error: error.message || String(error) };
     }
 };
