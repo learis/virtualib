@@ -139,7 +139,8 @@ export const Libraries = () => {
 
                                 {library.owner && (
                                     <div className="mb-4 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded inline-block">
-                                        Owner: {library.owner.name} {library.owner.surname} ({library.owner.email})
+                                        <div className="font-bold text-gray-700">Owner: {library.owner.name} {library.owner.surname}</div>
+                                        <div className="text-gray-400">{library.owner.email}</div>
                                     </div>
                                 )}
 

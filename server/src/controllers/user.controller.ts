@@ -256,12 +256,11 @@ export const deleteUser = async (req: Request, res: Response) => {
             }
         }
 
-        // Soft delete
-        await prisma.user.update({
-            where: { id },
-            data: { deleted_at: new Date(), is_active: false }
+        // Hard delete
+        await prisma.user.delete({
+            where: { id }
         });
-        res.json({ message: 'User deleted successfully' });
+        res.json({ message: 'User permanently deleted' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting user' });
     }

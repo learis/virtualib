@@ -78,6 +78,13 @@ export const getCategories = async (req: Request, res: Response) => {
             where,
             include: {
                 library: true,
+                created_by: {
+                    select: {
+                        name: true,
+                        surname: true,
+                        email: true
+                    }
+                },
                 _count: {
                     select: { books: true }
                 }
@@ -116,7 +123,10 @@ export const createCategory = async (req: Request, res: Response) => {
         }
 
         const category = await prisma.category.create({
-            data
+            data: {
+                ...data,
+                created_by_id: user.id
+            }
         });
         res.status(201).json(category);
     } catch (error) {

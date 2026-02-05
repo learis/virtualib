@@ -40,6 +40,7 @@ model User {
   id            String    @id @default(uuid())
   libraries     Library[] @relation("LibraryUsers")
   owned_libraries Library[] @relation("LibraryOwner")
+  created_categories Category[] @relation("CategoryCreator")
   
   name          String
   surname       String
@@ -60,14 +61,17 @@ model User {
 }
 
 model Category {
-  id         String   @id @default(uuid())
-  library_id String
-  library    Library  @relation(fields: [library_id], references: [id], onDelete: Cascade)
-  name       String
-  created_at DateTime @default(now())
+  id            String   @id @default(uuid())
+  name          String
+  library_id    String
+  library       Library  @relation(fields: [library_id], references: [id])
+  created_by_id String?
+  created_by    User?    @relation("CategoryCreator", fields: [created_by_id], references: [id])
+  books         BookCategory[]
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  books      BookCategory[]
-
+  @@unique([name, library_id])
   @@map("categories")
 }
 

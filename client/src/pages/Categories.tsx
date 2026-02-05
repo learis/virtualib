@@ -7,6 +7,11 @@ interface Category {
     id: string;
     name: string;
     library: { id: string; name: string };
+    created_by?: {
+        name: string;
+        surname: string;
+        email: string;
+    };
     _count?: {
         books: number;
     };
@@ -191,6 +196,11 @@ export const Categories = () => {
                                 <h3 className="font-bold text-lg text-gray-900 mb-1 truncate" title={category.name}>{category.name}</h3>
                                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
                                     <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-100 truncate max-w-[120px]">{category.library?.name}</span>
+                                    {category.created_by && (
+                                        <span className="text-[10px] text-gray-400">
+                                            by {category.created_by.name} {category.created_by.surname}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center gap-2 pt-4 border-t border-gray-50">

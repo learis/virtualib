@@ -94,6 +94,7 @@ export const Requests = () => {
         if (status === 'return_requested') return 'Return Requested';
         if (status === 'return_rejected') return 'Return Rejected';
         if (status === 'returned') return 'Returned';
+        if (status === 'cancelled') return 'CANCELLED BY USER';
         return status.charAt(0).toUpperCase() + status.slice(1);
     };
 
@@ -294,7 +295,7 @@ export const Requests = () => {
                                     {req.status === 'cancelled' && req.decided_at && (
                                         <>
                                             <span>•</span>
-                                            <span className="text-red-400">Cancelled: {formatDateTime(req.decided_at)}</span>
+                                            <span className="text-red-400">CANCELLED BY USER: {formatDateTime(req.decided_at)}</span>
                                         </>
                                     )}
                                 </div>
@@ -478,7 +479,7 @@ export const Requests = () => {
                                             {formatDateTime(selectedRequest.date)}
                                             {selectedRequest.status === 'cancelled' && selectedRequest.decided_at && (
                                                 <span className="block text-red-500 text-xs mt-1">
-                                                    Cancelled: {formatDateTime(selectedRequest.decided_at)}
+                                                    CANCELLED BY USER: {formatDateTime(selectedRequest.decided_at)}
                                                 </span>
                                             )}
                                         </p>
