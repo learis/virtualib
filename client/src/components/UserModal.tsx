@@ -38,7 +38,8 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
 
                 if (isLibrarian) {
                     setRoles(rolesRes.data.filter((r: any) => r.role_name === 'user'));
-                    setLibraries(libsRes.data);
+                    // Only show owned libraries
+                    setLibraries(libsRes.data.filter((l: any) => l.owner_id === currentUser.id));
                 } else {
                     setRoles(rolesRes.data);
                     setLibraries(libsRes.data);

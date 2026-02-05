@@ -162,6 +162,20 @@ export const sendTestEmailDirect = async (config: {
         return { success: true };
     } catch (error: any) {
         console.error('Test email failed DETAILED:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-        return { success: false, error: error.message || String(error) };
+
+        let errorMessage = error.message || String(error);
+
+        // Friendly error mapping
+        if (JSON.stringify(error).includes('invalid_grant')) {
+            errorMessage = 'Gmail Yetkilendirme Hatası (invalid_grant): Refresh Token geçersiz veya süresi dolmuş. Lütfen token\'ı yenileyin veya Google Cloud Console üzerinden uygulamanızı "Publish" moduna alın.';
+        } else if (errorMessage.includes('Missing credentials')) {
+            errorMessage = 'Eksik Kimlik Bilgileri: Lütfen tüm alanları doldurduğunuzdan emin olun.';
+        } else if (errorMessage.includes('ETIMEDOUT')) {
+            errorMessage = 'Bağlantı Zaman Aşımı: Sunucuya ulaşılamadı. Port ve Host ayarlarını kontrol edin.';
+        } else if (errorMessage.includes('EAUTH')) {
+            errorMessage = 'Kimlik Doğrulama Hatası: Kullanıcı adı veya şifre yanlış. Gmail için "Uygulama Şifresi" (App Password) kullandığınızdan emin olun.';
+        }
+
+        return { success: false, error: errorMessage };
     }
 };

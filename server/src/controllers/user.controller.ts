@@ -239,7 +239,7 @@ export const deleteUser = async (req: Request, res: Response) => {
         const currentRole = currentUser.role.role_name;
 
         // Fetch User to check ownership
-        const targetUser = await prisma.user.findUnique({ where: { id }, include: { libraries: true } });
+        const targetUser = await prisma.user.findUnique({ where: { id }, include: { libraries: true, role: true } });
         if (!targetUser) return res.status(404).json({ message: 'User not found' });
 
         // Librarian Scope Check
@@ -249,6 +249,11 @@ export const deleteUser = async (req: Request, res: Response) => {
             const isTargetInOwned = targetUser.libraries.some(lib => ownedIds.includes(lib.id));
 
             if (!isTargetInOwned) return res.status(403).json({ message: 'Forbidden' });
+
+            // Ensure Librarian can only delete 'user' role
+            if (targetUser.role?.role_name !== 'user') {
+                return res.status(403).json({ message: 'Forbidden: Librarians can only delete regular Users' });
+            }
         }
 
         // Soft delete
