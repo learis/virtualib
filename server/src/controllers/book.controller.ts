@@ -174,18 +174,29 @@ export const createBook = async (req: Request, res: Response) => {
             // 1. If library_id provided, check access (owned or assigned)
             // 2. If not provided, default to first owned or first assigned.
 
-            const ownedLib = await prisma.library.findFirst({ where: { owner_id: user.id } });
-            const assignedLib = user.libraries?.[0];
-
             if (targetLibraryId) {
-                const isOwned = ownedLib?.id === targetLibraryId;
+                // Verify access to the SPECIFIC target library
+                // Check ownership
+                const isOwned = await prisma.library.count({
+                    where: {
+                        id: targetLibraryId,
+                        owner_id: user.id
+                    }
+                }) > 0;
+
+                // Check assignment
                 const isAssigned = user.libraries?.some((l: any) => l.id === targetLibraryId);
+
                 if (!isOwned && !isAssigned) {
                     return res.status(403).json({ message: 'Forbidden: You do not have access to this library' });
                 }
             } else {
                 // Default to Owned then Assigned
-                targetLibraryId = ownedLib?.id || assignedLib?.id;
+                // Fetch first owned lib just for default selection
+                const defaultOwned = await prisma.library.findFirst({ where: { owner_id: user.id } });
+                const assignedLib = user.libraries?.[0];
+
+                targetLibraryId = defaultOwned?.id || assignedLib?.id;
                 if (!targetLibraryId) {
                     return res.status(400).json({ message: 'No library assigned to user' });
                 }
