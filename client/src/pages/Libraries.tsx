@@ -7,6 +7,11 @@ interface Library {
     id: string;
     name: string;
     description?: string;
+    owner?: {
+        name: string;
+        surname: string;
+        email: string;
+    };
     _count?: {
         users: number;
         books: number;
@@ -132,6 +137,12 @@ export const Libraries = () => {
                                 <h3 className="font-bold text-lg text-gray-900 mb-2 truncate" title={library.name}>{library.name}</h3>
                                 <p className="text-sm text-gray-500 line-clamp-2 h-10 mb-6">{library.description || 'No description provided.'}</p>
 
+                                {library.owner && (
+                                    <div className="mb-4 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded inline-block">
+                                        Owner: {library.owner.name} {library.owner.surname} ({library.owner.email})
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-3 gap-2 py-4 border-t border-gray-50 bg-gray-50/50 rounded-lg">
                                     <div className="text-center px-1">
                                         <div className="text-lg font-bold text-gray-900">{library._count?.users || 0}</div>
@@ -149,61 +160,65 @@ export const Libraries = () => {
                             </div>
                         </div>
                     ))}
-                    {libraries.length === 0 && (
-                        <div className="col-span-full text-center py-10 text-gray-400">
-                            No libraries found.
-                        </div>
-                    )}
-                </div>
+                    {
+                        libraries.length === 0 && (
+                            <div className="col-span-full text-center py-10 text-gray-400">
+                                No libraries found.
+                            </div>
+                        )
+                    }
+                </div >
             )}
 
             {/* Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl">
-                        <h2 className="text-xl font-bold mb-4">
-                            {editingLibrary ? 'Edit Library' : 'New Library'}
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Library Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    className="input"
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                        <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl">
+                            <h2 className="text-xl font-bold mb-4">
+                                {editingLibrary ? 'Edit Library' : 'New Library'}
+                            </h2>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Library Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="input"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </div>
 
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Description</label>
-                                <textarea
-                                    className="input min-h-[100px]"
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                />
-                            </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Description</label>
+                                    <textarea
+                                        className="input min-h-[100px]"
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    />
+                                </div>
 
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseModal}
-                                    className="px-4 py-2 border rounded hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="h-10 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-2 whitespace-nowrap"
-                                >
-                                    Save
-                                </button>
-                            </div>
-                        </form>
+                                <div className="flex justify-end gap-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseModal}
+                                        className="px-4 py-2 border rounded hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="h-10 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                                    >
+                                        Save
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };

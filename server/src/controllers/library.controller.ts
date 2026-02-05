@@ -169,6 +169,13 @@ export const getAllLibraries = async (req: Request, res: Response) => {
         const libraries = await prisma.library.findMany({
             where,
             include: {
+                owner: {
+                    select: {
+                        name: true,
+                        surname: true,
+                        email: true
+                    }
+                },
                 _count: {
                     select: {
                         users: true,
