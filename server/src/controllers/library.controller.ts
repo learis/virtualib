@@ -173,7 +173,10 @@ export const getAllLibraries = async (req: Request, res: Response) => {
                     select: {
                         name: true,
                         surname: true,
-                        email: true
+                        email: true,
+                        role: {
+                            select: { role_name: true }
+                        }
                     }
                 },
                 _count: {

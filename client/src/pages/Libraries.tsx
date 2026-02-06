@@ -11,6 +11,7 @@ interface Library {
         name: string;
         surname: string;
         email: string;
+        role?: { role_name: string };
     };
     _count?: {
         users: number;
@@ -137,12 +138,17 @@ export const Libraries = () => {
                                 <h3 className="font-bold text-lg text-gray-900 mb-2 truncate" title={library.name}>{library.name}</h3>
                                 <p className="text-sm text-gray-500 line-clamp-2 h-10 mb-6">{library.description || 'No description provided.'}</p>
 
-                                {library.owner && (
-                                    <div className="mb-4 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded inline-block">
-                                        <div className="font-bold text-gray-700">Owner: {library.owner.name} {library.owner.surname}</div>
-                                        <div className="text-gray-400">{library.owner.email}</div>
-                                    </div>
-                                )}
+                                {/* Owner Display Logic */}
+                                <div className="mb-4 text-xs text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded inline-block">
+                                    {(!library.owner || library.owner.role?.role_name === 'admin') ? (
+                                        <div className="font-bold text-gray-700">Owner: Admin</div>
+                                    ) : (
+                                        <>
+                                            <div className="font-bold text-gray-700">Owner: {library.owner.name} {library.owner.surname}</div>
+                                            <div className="text-gray-400">{library.owner.email}</div>
+                                        </>
+                                    )}
+                                </div>
 
                                 <div className="grid grid-cols-3 gap-2 py-4 border-t border-gray-50 bg-gray-50/50 rounded-lg">
                                     <div className="text-center px-1">
