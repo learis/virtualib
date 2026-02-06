@@ -200,10 +200,10 @@ export const Categories = () => {
                                     </span>
                                     {category.created_by && (
                                         <div className="flex flex-col ml-1">
-                                            <span className="text-xs text-gray-600 font-medium">
+                                            <span className="text-sm text-gray-700 font-semibold leading-tight">
                                                 {category.created_by.name} {category.created_by.surname}
                                             </span>
-                                            <span className="text-[10px] text-gray-400 leading-tight">
+                                            <span className="text-xs text-gray-500 leading-tight">
                                                 {category.created_by.email}
                                             </span>
                                         </div>
