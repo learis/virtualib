@@ -194,12 +194,19 @@ export const Categories = () => {
                                 </div>
 
                                 <h3 className="font-bold text-lg text-gray-900 mb-1 truncate" title={category.name}>{category.name}</h3>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
-                                    <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-100 truncate max-w-[120px]">{category.library?.name}</span>
+                                <div className="flex flex-col gap-1 text-xs text-gray-500 mb-4">
+                                    <span className="bg-gray-50 px-2 py-0.5 rounded border border-gray-100 w-fit max-w-full truncate">
+                                        Lib: {category.library?.name}
+                                    </span>
                                     {category.created_by && (
-                                        <span className="text-[10px] text-gray-400">
-                                            by {category.created_by.name} {category.created_by.surname}
-                                        </span>
+                                        <div className="flex flex-col ml-1">
+                                            <span className="text-gray-600 font-medium">
+                                                {category.created_by.name} {category.created_by.surname}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">
+                                                {category.created_by.email}
+                                            </span>
+                                        </div>
                                     )}
                                 </div>
 
