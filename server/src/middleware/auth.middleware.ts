@@ -3,14 +3,20 @@ import prisma from '../lib/prisma';
 import { verifyToken } from '../utils/auth';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    console.log(`[AuthMiddleware] Header: ${authHeader}`);
+
+    const token = authHeader?.split(' ')[1];
 
     if (!token) {
+        console.log('[AuthMiddleware] No token found');
         return res.status(401).json({ message: 'Unauthorized: No token provided' });
     }
 
     try {
         const decoded = verifyToken(token) as { userId: string };
+        console.log(`[AuthMiddleware] Decoded: ${JSON.stringify(decoded)}`);
+
         const user = await prisma.user.findUnique({
             where: { id: decoded.userId },
             include: {
@@ -20,12 +26,14 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         });
 
         if (!user || !user.is_active) {
+            console.log(`[AuthMiddleware] User not found or inactive: ${decoded.userId}`);
             return res.status(401).json({ message: 'Unauthorized: User not found or inactive' });
         }
 
         (req as any).user = user;
         next();
     } catch (error) {
+        console.error('[AuthMiddleware] Verification Failed:', error);
         return res.status(401).json({ message: 'Unauthorized: Invalid token' });
     }
 };

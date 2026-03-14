@@ -257,3 +257,56 @@ export const deleteRequest = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Failed to cancel request' });
     }
 };
+
+export const getPendingCount = async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const role = user.role.role_name;
+
+        // Ensure only Admins and Librarians can see the counts
+        if (role !== 'admin' && role !== 'librarian') {
+            return res.json({ count: 0 });
+        }
+
+        let allowedIds: string[] = [];
+        const isAdmin = role === 'admin';
+
+        if (!isAdmin) {
+            // For Librarians: get assigned and owned libraries
+            const userWithLibs = await prisma.user.findUnique({
+                where: { id: user.id },
+                include: { libraries: { select: { id: true } } }
+            });
+            const assignedIds = userWithLibs?.libraries.map(l => l.id) || [];
+
+            const owned = await prisma.library.findMany({
+                where: { owner_id: user.id },
+                select: { id: true }
+            });
+            const ownedIds = owned.map(l => l.id);
+
+            allowedIds = [...new Set([...assignedIds, ...ownedIds])];
+
+            if (allowedIds.length === 0) {
+                return res.json({ count: 0 });
+            }
+        }
+
+        const whereCondition = isAdmin ? {} : { library_id: { in: allowedIds } };
+
+        const [pendingBorrow, pendingReturn] = await Promise.all([
+            prisma.borrowRequest.count({
+                where: { ...whereCondition, status: 'pending' }
+            }),
+            prisma.bookLoan.count({
+                where: { ...whereCondition, status: 'return_requested' }
+            })
+        ]);
+
+        const totalCount = pendingBorrow + pendingReturn;
+        res.json({ count: totalCount });
+    } catch (error) {
+        console.error('Failed to fetch pending requests count:', error);
+        res.status(500).json({ message: 'Failed to fetch pending count' });
+    }
+};

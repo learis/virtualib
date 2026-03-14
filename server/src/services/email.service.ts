@@ -34,57 +34,51 @@ export const sendEmail = async (libraryId: string, options: EmailOptions) => {
             where: { library_id: libraryId }
         });
 
-        if (!settings) {
-            console.warn(`Settings not configured for library ${libraryId}`);
-            return false;
+        // 1. Try Settings (Library Specific)
+        if (settings && settings.email_provider === 'gmail') {
+            if (settings.gmail_client_id && settings.gmail_client_secret && settings.gmail_refresh_token && settings.gmail_user) {
+                const auth = createGmailClient(settings.gmail_client_id, settings.gmail_client_secret, settings.gmail_refresh_token);
+                const gmail = google.gmail({ version: 'v1', auth });
+                const raw = makeBody(options.to, settings.gmail_user, options.subject, options.html);
+                await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
+                console.log(`Email sent to ${options.to} via Gmail API (Library Settings)`);
+                return true;
+            }
         }
 
-        // GMAIL API PROVIDER
-        if (settings.email_provider === 'gmail') {
-            if (!settings.gmail_client_id || !settings.gmail_client_secret || !settings.gmail_refresh_token || !settings.gmail_user) {
-                console.warn(`Gmail API credentials missing for library ${libraryId}`);
-                return false;
-            }
-
-            const auth = createGmailClient(settings.gmail_client_id, settings.gmail_client_secret, settings.gmail_refresh_token);
+        // 2. Fallback to System Env (Global Gmail)
+        if (process.env.GMAIL_USER && process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+            const auth = createGmailClient(process.env.GMAIL_CLIENT_ID, process.env.GMAIL_CLIENT_SECRET, process.env.GMAIL_REFRESH_TOKEN);
             const gmail = google.gmail({ version: 'v1', auth });
-
-            const raw = makeBody(options.to, settings.gmail_user, options.subject, options.html);
-
-            await gmail.users.messages.send({
-                userId: 'me',
-                requestBody: { raw }
-            });
-
-            console.log(`Email sent to ${options.to} via Gmail API`);
+            const raw = makeBody(options.to, process.env.GMAIL_USER, options.subject, options.html);
+            await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
+            console.log(`Email sent to ${options.to} via Gmail API (System Env)`);
             return true;
         }
 
-        // SMTP PROVIDER (Fallthrough)
-        if (!settings.smtp_host || !settings.smtp_user) {
-            console.warn(`SMTP settings not configured for library ${libraryId}`);
-            return false;
+        // 3. Fallback to Settings SMTP
+        if (settings && settings.smtp_host && settings.smtp_user) {
+            // ... existing SMTP logic ...
+            const transporter = nodemailer.createTransport({
+                host: settings.smtp_host,
+                port: settings.smtp_port || 587,
+                secure: settings.smtp_port === 465,
+                auth: { user: settings.smtp_user, pass: settings.smtp_password || undefined },
+            });
+            await transporter.sendMail({
+                from: settings.smtp_from || settings.smtp_user,
+                to: options.to,
+                subject: options.subject,
+                html: options.html,
+            });
+            console.log(`Email sent to ${options.to} via SMTP`);
+            return true;
         }
 
-        const transporter = nodemailer.createTransport({
-            host: settings.smtp_host,
-            port: settings.smtp_port || 587,
-            secure: settings.smtp_port === 465, // true for 465, false for other ports
-            auth: {
-                user: settings.smtp_user,
-                pass: settings.smtp_password || undefined,
-            },
-        });
+        console.warn(`No valid email configuration found for library ${libraryId} or system.`);
+        return false;
 
-        await transporter.sendMail({
-            from: settings.smtp_from || settings.smtp_user,
-            to: options.to,
-            subject: options.subject,
-            html: options.html,
-        });
 
-        console.log(`Email sent to ${options.to}`);
-        return true;
     } catch (error) {
         console.error('Failed to send email:', error);
         return false;

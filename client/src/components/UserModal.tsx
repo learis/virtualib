@@ -38,8 +38,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
 
                 if (isLibrarian) {
                     setRoles(rolesRes.data.filter((r: any) => r.role_name === 'user'));
-                    // Only show owned libraries
-                    setLibraries(libsRes.data.filter((l: any) => l.owner_id === currentUser.id));
+                    setLibraries(libsRes.data); // Backend already filters for Librarian (owned + assigned)
                 } else {
                     setRoles(rolesRes.data);
                     setLibraries(libsRes.data);
@@ -83,8 +82,16 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+
         try {
-            if (initialData) {
+            if (isInviteMode) {
+                // Invite Flow for both Admin and Librarian
+                await api.post('/users/invite', {
+                    email: formData.email,
+                    library_ids: formData.library_ids,
+                    role_id: formData.role_id || undefined
+                });
+            } else if (initialData) {
                 const updateData = { ...formData };
                 if (!updateData.password) delete (updateData as any).password;
                 await api.put(`/users/${initialData.id}`, updateData);
@@ -100,14 +107,17 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
         }
     };
 
-
+    const userString = localStorage.getItem('user');
+    const currentUser = userString ? JSON.parse(userString) : null;
+    const isAdmin = currentUser?.role === 'admin';
+    const isInviteMode = !initialData; // All new users are invited via email
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between p-4 border-b">
                     <h2 className="text-xl font-semibold">
-                        {initialData ? 'Edit User' : 'Add New User'}
+                        {initialData ? 'Edit User' : (isInviteMode ? 'Invite User' : 'Add New User')}
                     </h2>
                     <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
                         <X size={20} />
@@ -115,28 +125,30 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Name</label>
-                            <input
-                                type="text"
-                                required
-                                className="input"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            />
+                    {!isInviteMode && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Name</label>
+                                <input
+                                    type="text"
+                                    required={!isInviteMode}
+                                    className="input"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Surname</label>
+                                <input
+                                    type="text"
+                                    required={!isInviteMode}
+                                    className="input"
+                                    value={formData.surname}
+                                    onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Surname</label>
-                            <input
-                                type="text"
-                                required
-                                className="input"
-                                value={formData.surname}
-                                onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
-                            />
-                        </div>
-                    </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium mb-1">Email</label>
@@ -149,36 +161,43 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Password {initialData && '(Leave blank to keep current)'}</label>
-                        <input
-                            type="password"
-                            required={!initialData}
-                            minLength={6}
-                            className="input"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                    {!isInviteMode && (
                         <div>
-                            <label className="block text-sm font-medium mb-1">Phone</label>
+                            <label className="block text-sm font-medium mb-1">Password {initialData && '(Leave blank to keep current)'}</label>
                             <input
-                                type="tel"
-                                required
+                                type="password"
+                                required={!initialData}
+                                minLength={6}
                                 className="input"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                value={formData.password}
+                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             />
                         </div>
+                    )}
+
+                    {!isInviteMode && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Phone</label>
+                                <input
+                                    type="tel"
+                                    className="input"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {(isAdmin || !isInviteMode) && (
                         <div>
                             <label className="block text-sm font-medium mb-1">Role</label>
                             <select
-                                required
+                                required={!isInviteMode && isAdmin}
                                 className="input"
                                 value={formData.role_id}
                                 onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
+                                disabled={!isAdmin} 
                             >
                                 <option value="">Select Role</option>
                                 {roles.map(role => (
@@ -186,7 +205,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                                 ))}
                             </select>
                         </div>
-                    </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium mb-3">
@@ -248,7 +267,7 @@ export const UserModal = ({ isOpen, onClose, onSubmit, initialData }: UserModalP
                             className="h-10 px-6 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow active:scale-95 flex items-center gap-2 whitespace-nowrap"
                         >
                             <Save size={18} />
-                            {isLoading ? 'Saving...' : 'Save User'}
+                            {isLoading ? 'Sending...' : (isInviteMode ? 'Send Invitation' : 'Save User')}
                         </button>
                     </div>
                 </form>

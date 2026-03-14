@@ -1,0 +1,40 @@
+export const getInvitations = async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const isAdmin = user.role === 'admin';
+        
+        let invitations;
+        
+        if (isAdmin) {
+            // Admins see all invitations
+            invitations = await prisma.invitation.findMany({
+                include: {
+                    library: { select: { name: true } },
+                    sender: { select: { name: true, surname: true, email: true } }
+                },
+                orderBy: { created_at: 'desc' }
+            });
+        } else {
+            // Librarians only see invitations for their libraries
+            const userLibraries = await prisma.library.findMany({
+                where: { owner_id: user.userId },
+                select: { id: true }
+            });
+            const libraryIds = userLibraries.map(lib => lib.id);
+            
+            invitations = await prisma.invitation.findMany({
+                where: { library_id: { in: libraryIds } },
+                include: {
+                    library: { select: { name: true } },
+                    sender: { select: { name: true, surname: true, email: true } }
+                },
+                orderBy: { created_at: 'desc' }
+            });
+        }
+
+        res.json(invitations);
+    } catch (error) {
+        console.error('Failed to get invitations:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};

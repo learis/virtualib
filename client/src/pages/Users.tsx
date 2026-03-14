@@ -3,6 +3,13 @@ import { Trash2, Shield, User as UserIcon, Plus, Edit2 } from 'lucide-react';
 import api from '../services/api';
 import { UserModal } from '../components/UserModal';
 
+interface Invitation {
+    id: string;
+    status: string;
+    expires_at: string;
+    library_id: string;
+}
+
 interface User {
     id: string;
     name: string;
@@ -12,8 +19,13 @@ interface User {
     role: { id: string; role_name: string };
     role_id?: string;
     libraries?: { id: string; name: string }[];
+    invitations?: Invitation[];
     is_active: boolean;
 }
+
+// ... inside component ...
+
+
 
 export const Users = () => {
     const [users, setUsers] = useState<User[]>([]);
@@ -207,13 +219,52 @@ export const Users = () => {
                                                         : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border ${user.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-                                                        }`}>
-                                                        {user.is_active ? 'Active' : 'Inactive'}
-                                                    </span>
+                                                    {user.libraries && user.libraries.length > 0 ? (
+                                                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border ${user.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                                            {user.is_active ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    ) : user.invitations && user.invitations.length > 0 ? (
+                                                        (() => {
+                                                            const lastInv = user.invitations[user.invitations.length - 1]; // Simply take last for now
+                                                            const isExpired = new Date(lastInv.expires_at) < new Date();
+
+                                                            if (lastInv.status === 'PENDING') {
+                                                                if (isExpired) return <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border bg-yellow-50 text-yellow-700 border-yellow-200">Timeout</span>;
+                                                                return <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border bg-blue-50 text-blue-700 border-blue-200">Invitation Sent</span>;
+                                                            }
+                                                            if (lastInv.status === 'REJECTED' || lastInv.status === 'CANCELED_BY_USER') return <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border bg-gray-50 text-gray-700 border-gray-200">Rejected</span>;
+                                                            return <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border bg-gray-100 text-gray-800">{lastInv.status}</span>;
+                                                        })()
+                                                    ) : (
+                                                        <span className="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full border bg-gray-50 text-gray-600 border-gray-200">Not Registered</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <div className="flex items-center justify-end gap-3">
+                                                        {user.invitations && user.invitations.length > 0 && (() => {
+                                                            const lastInv = user.invitations[user.invitations.length - 1];
+                                                            const isExpired = new Date(lastInv.expires_at) < new Date();
+                                                            if (lastInv.status === 'PENDING' && isExpired) {
+                                                                return (
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await api.post(`/invitations/${lastInv.id}/resend`);
+                                                                                alert('Invitation resent successfully');
+                                                                                fetchUsers();
+                                                                            } catch (e) {
+                                                                                alert('Failed to resend invitation');
+                                                                            }
+                                                                        }}
+                                                                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                                                                        title="Resend Invitation"
+                                                                    >
+                                                                        Resend
+                                                                    </button>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                         <button
                                                             onClick={() => handleEditClick(user)}
                                                             className="text-gray-400 hover:text-blue-600 transition-colors"

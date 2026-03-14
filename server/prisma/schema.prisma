@@ -23,6 +23,7 @@ model Library {
   categories      Category[]
   book_loans      BookLoan[]
   borrow_requests BorrowRequest[]
+  invitations     Invitation[]
   settings        Settings[]
 
   @@map("libraries")
@@ -42,6 +43,15 @@ model User {
   owned_libraries Library[] @relation("LibraryOwner")
   created_categories Category[] @relation("CategoryCreator")
   
+  // Auth & Subscription Fields
+  registration_method String    @default("EMAIL") // EMAIL, GOOGLE
+  is_verified         Boolean   @default(false)
+  plan                PlanType  @default(FREE)
+  subscription_id     String?
+  plan_end_date       DateTime?
+  
+  invitations         Invitation[]
+
   name          String
   surname       String
   email         String    @unique
@@ -165,4 +175,28 @@ model Settings {
   overdue_days    Int      @default(14)
 
   @@map("settings")
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  email       String
+  library_id  String
+  library     Library  @relation(fields: [library_id], references: [id])
+  status      String   @default("PENDING") // PENDING, ACCEPTED, REJECTED, CANCELED_BY_USER
+  
+  sender_id   String?
+  sender      User?    @relation(fields: [sender_id], references: [id])
+  
+  expires_at  DateTime
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  @@map("invitations")
+}
+
+enum PlanType {
+  FREE
+  PLUS
+  PREMIUM
+  UNLIMITED
 }

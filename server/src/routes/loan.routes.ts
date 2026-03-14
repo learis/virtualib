@@ -9,8 +9,8 @@ router.use(authenticate);
 router.post('/', createLoan);
 router.get('/', getLoans);
 router.post('/:id/return-request', requestReturn);
-router.post('/:id/return', authorize(['admin']), approveReturn);
-router.post('/:id/reject', authorize(['admin']), rejectReturn);
+router.post('/:id/return', authorize(['admin', 'librarian']), approveReturn);
+router.post('/:id/reject', authorize(['admin', 'librarian']), rejectReturn);
 router.post('/:id/cancel-return', cancelReturnRequest);
 
 export default router;

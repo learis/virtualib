@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Logo } from '../components/Logo';
+import { GoogleLogin } from '@react-oauth/google';
 
 export const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const login = useAuthStore((state) => state.login);
+    const googleLogin = useAuthStore((state) => state.googleLogin);
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -85,6 +87,39 @@ export const Login = () => {
                     >
                         Sign In
                     </button>
+
+                    <div className="relative flex py-2 items-center my-4">
+                        <div className="flex-grow border-t border-gray-200"></div>
+                        <span className="flex-shrink-0 mx-4 text-gray-400 text-xs">OR WITH GOOGLE</span>
+                        <div className="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <GoogleLogin
+                            text="signin_with"
+                            // @ts-ignore
+                            locale="en"
+                            onSuccess={async (credentialResponse) => {
+                                if (credentialResponse.credential) {
+                                    try {
+                                        await googleLogin(credentialResponse.credential);
+                                        const user = useAuthStore.getState().user;
+                                        if (user?.role === 'admin') {
+                                            navigate('/dashboard');
+                                        } else {
+                                            navigate('/books');
+                                        }
+                                    } catch (err: any) {
+                                        console.error('Login Error:', err);
+                                        setError(err.response?.data?.message || err.message || 'Google Login failed');
+                                    }
+                                }
+                            }}
+                            onError={() => {
+                                setError('Google Login Failed');
+                            }}
+                        />
+                    </div>
                 </form>
             </div>
         </div>

@@ -1,9 +1,10 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Logo } from './Logo';
-import { LayoutDashboard, Book, Users, MessageSquare, Settings, LogOut, FolderTree, Building, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Book, Users, MessageSquare, Settings, LogOut, FolderTree, Building, Menu, X, Mail } from 'lucide-react';
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import api from '../services/api';
 
 export const Layout = () => {
     const { logout, user } = useAuthStore();
@@ -11,6 +12,29 @@ export const Layout = () => {
     const isAdmin = user?.role === 'admin';
     const isLibrarian = user?.role === 'librarian';
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        let isMounted = true;
+        const fetchPendingCount = async () => {
+            if (!isAdmin && !isLibrarian) return;
+            try {
+                const res = await api.get('/requests/pending-count');
+                if (isMounted) setPendingCount(res.data.count || 0);
+            } catch (error) {
+                console.error('Failed to fetch pending requests count:', error);
+            }
+        };
+
+        if (isAdmin || isLibrarian) {
+            fetchPendingCount();
+            const interval = setInterval(fetchPendingCount, 30000); // refresh every 30 seconds
+            return () => {
+                isMounted = false;
+                clearInterval(interval);
+            };
+        }
+    }, [isAdmin, isLibrarian]);
 
     const navItems = [
         ...(isAdmin || isLibrarian ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }] : []),
@@ -18,7 +42,8 @@ export const Layout = () => {
         { icon: FolderTree, label: 'Categories', path: '/categories' },
         ...(isAdmin || isLibrarian ? [
             { icon: Building, label: 'Libraries', path: '/libraries' },
-            { icon: Users, label: 'Users', path: '/users' }
+            { icon: Users, label: 'Users', path: '/users' },
+            { icon: Mail, label: 'Invitations', path: '/sent-invitations' }
         ] : []),
         { icon: MessageSquare, label: 'Requests', path: '/requests' },
         { icon: Book, label: 'Loans', path: '/loans' },
@@ -53,11 +78,16 @@ export const Layout = () => {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={clsx('nav-item', isActive && 'active')}
+                                className={clsx('nav-item relative', isActive && 'active')}
                                 onClick={() => setIsSidebarOpen(false)}
                             >
                                 <Icon size={20} />
                                 <span>{item.label}</span>
+                                {item.path === '/requests' && pendingCount > 0 && (
+                                    <span className="absolute right-4 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        {pendingCount > 99 ? '99+' : pendingCount}
+                                    </span>
+                                )}
                             </Link>
                         );
                     })}

@@ -11,6 +11,8 @@ import { Categories } from './pages/Categories';
 import { Settings } from './pages/Settings';
 import { Libraries } from './pages/Libraries';
 import { Loans } from './pages/Loans';
+import { Invitations } from './pages/Invitations';
+import { SentInvitations } from './pages/SentInvitations';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -32,6 +34,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/invitations" element={<Invitations />} />
 
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route path="dashboard" element={<ManagerRoute><Dashboard /></ManagerRoute>} />
@@ -39,6 +42,7 @@ function App() {
           <Route path="libraries" element={<ManagerRoute><Libraries /></ManagerRoute>} />
           <Route path="categories" element={<Categories />} />
           <Route path="users" element={<ManagerRoute><Users /></ManagerRoute>} />
+          <Route path="sent-invitations" element={<ManagerRoute><SentInvitations /></ManagerRoute>} />
           <Route path="loans" element={<Loans />} />
           <Route path="requests" element={<Requests />} />
           <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />

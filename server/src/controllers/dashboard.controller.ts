@@ -10,6 +10,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
         // Determine Filter Context
         let whereLibrary: any = {};
+        let whereUser: any = {};
         let libraryCountQuery: any = {};
 
         // Get allowed library IDs (Owned + Assigned)
@@ -32,12 +33,12 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
             if (allowedIds.length > 0) {
                 whereLibrary = { library_id: { in: allowedIds } };
+                whereUser = { libraries: { some: { id: { in: allowedIds } } } };
                 libraryCountQuery = { id: { in: allowedIds } };
             } else {
                 // No access to any library
-                // Return empty stats immediately or ensure queries return 0
-                // Setting a condition that matches nothing
                 whereLibrary = { id: '00000000-0000-0000-0000-000000000000' };
+                whereUser = { id: '00000000-0000-0000-0000-000000000000' };
                 libraryCountQuery = { id: '00000000-0000-0000-0000-000000000000' };
             }
         }
@@ -60,7 +61,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             // 1. Total Books
             prisma.book.count({ where: whereLibrary }),
             // 2. Total Users
-            prisma.user.count({ where: whereLibrary }),
+            prisma.user.count({ where: whereUser }),
             // 3. Active Loans (returned_at is null)
             prisma.bookLoan.count({ where: { ...whereLibrary, returned_at: null } }),
             // 4. Pending Requests
