@@ -34,7 +34,10 @@ services:
     networks:
       - openlib-net
   web:
-    build: ./client
+    build:
+      context: ./client
+      args:
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     container_name: openlib-web
     restart: always
     ports:
